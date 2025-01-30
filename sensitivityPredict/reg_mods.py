@@ -1,26 +1,16 @@
 #library imports
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
 import pandas as pd
 import numpy as np
 import sklearn
-import scipy
-import nbformat
-import itertools
 import math
 import seaborn as sb
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet, Ridge
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.neighbors import KNeighborsClassifier, KernelDensity
 from sklearn.manifold import TSNE
-from scipy.integrate import simpson
-from scipy.stats import norm
 from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.pipeline import Pipeline
