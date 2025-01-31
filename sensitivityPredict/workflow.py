@@ -100,6 +100,7 @@ if __name__=="__main__":
     #option 1: one drug is specified
     if args.drugOfInterest !="":
         X_train, X_test, y_train, y_test, y_scaler = preproc(rnaseq, drugdata, cancertypes, args.drugOfInterest, args.binary, args.visuals, args.outputPath, args.developerMode)
+        y_test.to_csv(args.outputPath+args.drugOfInterest+'_y_test_set.csv')
         if(args.binary):
             print(classificationModels(X_train, X_test, y_train, y_test, args.drugOfInterest, args.visuals, args.outputPath))
         else:
