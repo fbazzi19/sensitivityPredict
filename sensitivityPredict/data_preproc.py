@@ -329,7 +329,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
     #split the data so cancer types are representative of overall distribution
     #split into training and test data
     X_train, X_test, y_train, y_test = train_test_split(
-        X_pd, y, stratify=cancertypes['cancer_type'], test_size=0.25, random_state=42)
+        X_pd, y, stratify=cancertypes['cancer_type'], test_size=0.2, random_state=42)
 
     #distribution of test and train cancer types
     if(dM):

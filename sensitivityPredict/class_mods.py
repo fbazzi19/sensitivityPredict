@@ -12,6 +12,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, precision_recall_curve, auc, f1_score
+from cross_val import cross_val
+from shuffle_eval import shuffle_eval
 
 
 #accuracy= n_correct/n_total
@@ -30,31 +32,39 @@ def logreg(X_train, X_test, y_train, y_test, pdf, visuals):
     params = {'penalty':['l1','l2'], 'solver':['saga', 'liblinear'], 'C': [0.001, 0.01, 0.1, 1, 10],
             'max_iter':[10000], 'class_weight':['balanced'], 'random_state':[42]}
     #cross validation
-    print("pre cv")
-    cv = GridSearchCV(model, params, scoring=sklearn.metrics.make_scorer(auc_pr_scorer, greater_is_better=True, response_method="predict_proba"), cv=5, n_jobs=-1)#, verbose=2)
-    cv = cv.fit(X_train, y_train.values.ravel())
-    print("post cv")
+    scorer=sklearn.metrics.make_scorer(auc_pr_scorer, greater_is_better=True, response_method="predict_proba")
+    best_params=cross_val(X_train, y_train, model, params, scorer, binary=1, modeltype="Logistic Regression")
+    model=LogisticRegression(**best_params)
 
-    #get the best model (already fitted)
-    model=cv.best_estimator_
+    #perform shuffled split evaluation
+    metrics=shuffle_eval(X_train, y_train, model, binary=1)
+    # Calculate average and standard deviation of metrics
+    avg_metric = np.mean(metrics)
+    std_metric = np.std(metrics)
+    avg_aucpr="Average AUC-PR over 50 splits: "+str(avg_metric)
+    std_aucpr="Standard Deviation of AUC-PR: "+str(std_metric)
+
     #predict y values for test data
+    model.fit(X_train, y_train.values.ravel())
     y_pred=model.predict(X_test)
     #probabilities
     y_pred_prob = model.predict_proba(X_test)[:, 1]
 
     # Generate Precision-Recall curve
     precision, recall, thresholds = precision_recall_curve(y_test.values.ravel(), y_pred_prob)
-
     # Compute AUC-PR
     auc_pr = auc(recall, precision)
+    auc_str="AUC-PR: "+str(auc_pr)
+    acc_str="Accuracy: "+str(accuracy(y_pred, y_test.values.ravel()))
 
     # Add a page for print statements (text)
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
     # Add the text to the figure: accuracy
-    txt= ["Accuracy for Logistic regression classification: "+str(accuracy(y_pred, y_test.values.ravel())),
-        classification_report(y_test.values.ravel(), y_pred),
-        "AUC-PR: "+str(auc_pr)]
+    txt= ["Logistic Regression: ",
+        avg_aucpr, std_aucpr,
+        auc_str, acc_str,
+        classification_report(y_test.values.ravel(), y_pred)]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)
@@ -104,31 +114,39 @@ def lda(X_train, X_test, y_train, y_test, pdf, visuals):
     #define the range of parameters
     params = {'solver':['svd'], 'tol': [0.0001, 0.001, 0.01]}
     #cross validation
-    print("pre cv")
-    cv = GridSearchCV(model, params, scoring=sklearn.metrics.make_scorer(auc_pr_scorer, greater_is_better=True, response_method="predict_proba"), cv=5, n_jobs=-3)#, verbose=2) 
-    cv = cv.fit(X_train, y_train.values.ravel())
-    print("post cv")
+    scorer=sklearn.metrics.make_scorer(auc_pr_scorer, greater_is_better=True, response_method="predict_proba")
+    best_params=cross_val(X_train, y_train, model, params, scorer, binary=1, modeltype="LDA")
+    model=LDA(**best_params)
 
-    #get the best model (already fitted)
-    model=cv.best_estimator_
+    #perform shuffled split evaluation
+    metrics=shuffle_eval(X_train, y_train, model, binary=1)
+    # Calculate average and standard deviation of metrics
+    avg_metric = np.mean(metrics)
+    std_metric = np.std(metrics)
+    avg_aucpr="Average AUC-PR over 50 splits: "+str(avg_metric)
+    std_aucpr="Standard Deviation of AUC-PR: "+str(std_metric)
+
     #predict y values for test data
+    model.fit(X_train, y_train.values.ravel())
     y_pred=model.predict(X_test)
     #probabilities
     y_pred_prob = model.predict_proba(X_test)[:, 1]
 
     # Generate Precision-Recall curve
     precision, recall, thresholds = precision_recall_curve(y_test.values.ravel(), y_pred_prob)
-
     # Compute AUC-PR
     auc_pr = auc(recall, precision)
+    auc_str="AUC-PR: "+str(auc_pr)
+    acc_str="Accuracy: "+str(accuracy(y_pred, y_test.values.ravel()))
 
     # Add a page for print statements (text)
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
     # Add the text to the figure: accuracy
-    txt= ["Accuracy for linear discriminant analysis classification: "+str(accuracy(y_pred, y_test.values.ravel())),
-        classification_report(y_test.values.ravel(), y_pred),
-        "AUC-PR: "+str(auc_pr)]
+    txt= ["Linear Discriminant Analysis: ",
+        avg_aucpr, std_aucpr,
+        auc_str, acc_str,
+        classification_report(y_test.values.ravel(), y_pred)]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)
@@ -180,31 +198,39 @@ def knn(X_train, X_test, y_train, y_test, pdf, visuals):
                 'p':[1,2]}
 
     #cross validation
-    print("pre cv")
-    cv = GridSearchCV(model, params, scoring=sklearn.metrics.make_scorer(auc_pr_scorer, greater_is_better=True, response_method="predict_proba"), cv=10, n_jobs=-1)#, verbose=2) 
-    cv = cv.fit(X_train, y_train.values.ravel())
-    print("post cv")
+    scorer=sklearn.metrics.make_scorer(auc_pr_scorer, greater_is_better=True, response_method="predict_proba")
+    best_params=cross_val(X_train, y_train, model, params, scorer, binary=1, modeltype="KNN")
+    model=KNeighborsClassifier(**best_params)
+    
+    #perform shuffled split evaluation
+    metrics=shuffle_eval(X_train, y_train, model, binary=1)
+    # Calculate average and standard deviation of metrics
+    avg_metric = np.mean(metrics)
+    std_metric = np.std(metrics)
+    avg_aucpr="Average AUC-PR over 50 splits: "+str(avg_metric)
+    std_aucpr="Standard Deviation of AUC-PR: "+str(std_metric)
 
-    #get the best model (already fitted)
-    model=cv.best_estimator_
     #predict y values for test data
+    model.fit(X_train, y_train.values.ravel())
     y_pred=model.predict(X_test)
     #probabilities
     y_pred_prob = model.predict_proba(X_test)[:, 1]
 
     # Generate Precision-Recall curve
     precision, recall, thresholds = precision_recall_curve(y_test.values.ravel(), y_pred_prob)
-
     # Compute AUC-PR
     auc_pr = auc(recall, precision)
+    auc_str="AUC-PR: "+str(auc_pr)
+    acc_str="Accuracy: "+str(accuracy(y_pred, y_test.values.ravel()))
 
     # Add a page for print statements (text)
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
     # Add the text to the figure: accuracy
-    txt= ["Accuracy for k nearest neighbors classification: "+str(accuracy(y_pred, y_test.values.ravel())),
-        classification_report(y_test.values.ravel(), y_pred),
-        "AUC-PR: "+str(auc_pr)]
+    txt= ["K-nearest Neighbors: ",
+        avg_aucpr, std_aucpr,
+        auc_str, acc_str,
+        classification_report(y_test.values.ravel(), y_pred)]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)

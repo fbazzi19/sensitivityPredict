@@ -10,8 +10,9 @@ from scipy.integrate import simpson
 from scipy.stats import norm
 
 def lobico_calc(y, z=1.96, t=0.05):
-    """Final clean up of y data
-    
+    """Calculation of a binary threshold on the continuous IC50 values. 
+    For more information, see here. (https://doi.org/10.1038/srep36812)    
+
     Parameters
     ----------
     y : pandas dataframe

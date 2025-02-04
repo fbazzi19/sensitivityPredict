@@ -15,9 +15,21 @@ from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
+from cross_val import cross_val
+from shuffle_eval import shuffle_eval
 
 def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     model=LinearRegression()
+    #print(y_train)
+
+    #perform shuffled split evaluation
+    metrics=shuffle_eval(X_train, y_train, model, binary=0, y_scaler=y_scaler)
+    # Calculate average and standard deviation of metrics
+    avg_metric = np.mean(metrics)
+    std_metric = np.std(metrics)
+    avg_rmse="Average RMSE over 50 splits: "+str(avg_metric)
+    std_rmse="Standard Deviation of RMSE: "+str(std_metric)
+
     #fit the model
     model.fit(X_train, y_train.values.ravel())
     #the coefficients
@@ -26,18 +38,16 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     y_pred=model.predict(X_test)
     #r2 score
     r2 = r2_score(y_test.values.ravel(), y_pred)
-    #rmse
-    rmse=root_mean_squared_error(y_test.values.ravel(), y_pred)
+    r2_str="R2 score: "+str(r2)
 
     #un-normalize the values
     y_test_unnorm= y_scaler.inverse_transform(y_test)
     y_pred_reshaped = y_pred.reshape(-1, 1)
     y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
     y_pred_unnorm = y_pred_unnorm.flatten()
-    #r2 score
-    r2_un = r2_score(y_test_unnorm, y_pred_unnorm)
     #rmse
     rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+    rmse_str="RMSE: "+str(rmse_un)
 
 
     #TODO: adjust for this model
@@ -45,10 +55,11 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
     # Add the text to the figure: accuracy
-    txt= ["Linear Regression", "R2 score: "+str(r2),
-            "RMSE: "+str(rmse),
-            "Unnormalized R2: "+str(r2_un),
-            "Unnormalized RMSE: "+str(rmse_un)]
+    txt= ["Linear Regression", 
+            avg_rmse,
+            std_rmse,
+            r2_str,
+            rmse_str]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)
@@ -96,14 +107,20 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
                 'random_state': [42],
                 'selection': ['random']}
     
-    print("pre cv")
-    cv = GridSearchCV(model, param_grid,
-                            cv=5, scoring=sklearn.metrics.make_scorer(root_mean_squared_error, greater_is_better=False), n_jobs=-1)#, verbose=2)
-    cv=cv.fit(X_train, y_train.values.ravel())
-    print("post cv")
+    #create a scorer and conduct cross validation
+    scorer=sklearn.metrics.make_scorer(root_mean_squared_error, greater_is_better=False)
+    best_params=cross_val(X_train, y_train, model, param_grid, scorer, binary=0, modeltype="Elastic Net")
+    model=ElasticNet(**best_params)
 
-    #get the best model (already fitted)
-    model=cv.best_estimator_
+    #perform shuffled split evaluation
+    metrics=shuffle_eval(X_train, y_train, model, binary=0, y_scaler=y_scaler)
+    # Calculate average and standard deviation of metrics
+    avg_metric = np.mean(metrics)
+    std_metric = np.std(metrics)
+    avg_rmse="Average RMSE over 50 splits: "+str(avg_metric)
+    std_rmse="Standard Deviation of RMSE: "+str(std_metric)
+
+    model.fit(X_train, y_train.values.ravel())
     #get the coefficients of the model
     coefs=model.coef_
     coefs_named=pd.Series(data=coefs, index=X_test.columns.tolist(), name="Coefficients")
@@ -117,29 +134,27 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
 
     #r2 score
     r2 = r2_score(y_test.values.ravel(), y_pred)
-    #rmse
-    rmse=root_mean_squared_error(y_test.values.ravel(), y_pred)
+    r2_str="R2 score: "+str(r2)
 
     #un-normalize the values
     y_test_unnorm= y_scaler.inverse_transform(y_test)
     y_pred_reshaped = y_pred.reshape(-1, 1)
     y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
     y_pred_unnorm = y_pred_unnorm.flatten()
-    #r2 score
-    r2_un = r2_score(y_test_unnorm, y_pred_unnorm)
     #rmse
     rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+    rmse_str="RMSE: "+str(rmse_un)
 
 
     # Add a page for print statements (text)
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
     # Add the text to the figure: accuracy
-    txt= ["Elastic Net Regression", "R2 score: "+str(r2),
-            "RMSE: "+str(rmse),
-            "Unnormalized R2: "+str(r2_un),
-            "Unnormalized RMSE: "+str(rmse_un),
-            "\nCoefficients:\n" + coefs_named.to_string()]
+    txt= ["Elastic Net Regression",
+            avg_rmse,
+            std_rmse,
+            r2_str,
+            rmse_str]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)
