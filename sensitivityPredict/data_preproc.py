@@ -37,6 +37,7 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
     plt.ylabel("Count", fontsize=20)
     plt.tick_params(axis='both', which='major', labelsize=16)
     pdf.savefig()
+    plt.close()
 
 
     sensitivities = np.zeros(shape=(drugdata.shape[0],1))
@@ -70,6 +71,7 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
     plt.ylabel("ln(IC50)", fontsize=20)
     plt.tick_params(axis='both', which='major', labelsize=16)
     pdf.savefig()
+    plt.close()
 
     # Use only the first 20 rows of the data
     subset_data = drugdatacopy[drugdatacopy['DRUG_NAME'].isin(drugdatacopy['DRUG_NAME'].unique()[:20])]
@@ -87,10 +89,11 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
     plt.ylabel("ln(IC50)", fontsize=20)
     plt.tick_params(axis='both', which='major', labelsize=16)
     pdf.savefig()
+    plt.close()
 
     return 0
 
-def yPreproc(drugdata, doi, visuals, pdf=None):
+def yPreproc(drugdata, doi, did, visuals, pdf=None):
     """Adds Sensitivity and properly formats y data
 
     Parameters
@@ -112,6 +115,15 @@ def yPreproc(drugdata, doi, visuals, pdf=None):
     """
     #subset of drugdata that only looks at the doi
     y=drugdata[drugdata['DRUG_NAME']==doi]
+    #further subset that only looks at the did
+    y=y[y['DRUG_ID']==did]
+    #adjust drug name to include dataset and id
+    y['DRUG_NAME'] = y['DATASET']+ "_"+ y['DRUG_NAME']+ "_"+y['DRUG_ID'].astype(str)
+    new_drug_name=y['DRUG_NAME'].iloc[0]
+    #drop the id and dataset columns
+    y=y.drop(columns=['DRUG_ID', 'DATASET'])
+
+    #calculate binary threshold
     threshold, distb = lobico_calc(y)
 
     #visual of distribution of upsampled ic50 values with binary threshold
@@ -124,6 +136,7 @@ def yPreproc(drugdata, doi, visuals, pdf=None):
         plt.legend(fontsize=18, title='Legend', title_fontsize=18)
         plt.tick_params(axis='both', which='major', labelsize=16)
         pdf.savefig()
+        plt.close()
 
     #calculate binary sensitivity
     sensitivity=np.zeros(shape=(y.shape[0],1))
@@ -156,8 +169,9 @@ def yPreproc(drugdata, doi, visuals, pdf=None):
         plt.legend(fontsize=18, title='Sensitivity', title_fontsize=18)
         plt.tick_params(axis='both', which='major', labelsize=16)
         pdf.savefig()
+        plt.close()
 
-    return y
+    return y, new_drug_name
 
 def final_y(y, binary):
     """Final clean up of y data
@@ -187,7 +201,7 @@ def final_y(y, binary):
     return y
 
 
-def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
+def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, dM):
     """Formats and cleans the data to be used in machine learning models
 
     Parameters
@@ -219,7 +233,10 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
     #if the user requested visuals, open the pdf
     if(visuals):
         doinospace=doi.replace(" ", "")
-        visfile=os.path.join(outpath, f"{doinospace}.pdf")
+        dataset=drugdata['DATASET'].iloc[0]
+        new_name=dataset+"_"+doinospace+"_"+did.astype(str)
+
+        visfile=os.path.join(outpath, f"{new_name}.pdf")
         #plt.style.use('seaborn')
         pdf = matplotlib.backends.backend_pdf.PdfPages(visfile)
     else:
@@ -251,14 +268,14 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
 
     #y preprocessing
     #drop unnecessary columns
-    drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50']]
+    drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50', 'DATASET', 'DRUG_ID']]
     #'DATASET', 'DRUG_ID',
 
     #sort data by drug and cell line
     drugdata=drugdata.sort_values(by=['DRUG_NAME', 'SANGER_MODEL_ID'])
 
     #compute threshold for sensitivity using LOBICO method
-    y=yPreproc(drugdata, doi, visuals, pdf)
+    y, new_drug_name=yPreproc(drugdata, doi, did, visuals, pdf)
 
     #call the developer function
     if (dM):
@@ -272,21 +289,28 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
     y=final_y(y, binary)
     #print(y.value_counts('SANGER_MODEL_ID')[y.value_counts('SANGER_MODEL_ID')>1])
     
-    #remove any duplicate cell lines from y
-    mask = y.index.duplicated(keep='last')
-    y = y[~mask]
+    #Should not be needed anymore
+    # remove any duplicate cell lines from y
+    #mask = y.index.duplicated(keep='last')
+    #y = y[~mask]
 
     
     #intersect cancer types with model ids from y
     cancertypes=cancertypes[cancertypes['model_id'].isin(y.index)]
 
-    #Normalize TPM Values
-    x_cols=list(X_pd)
+    #TODO: Apply variance filtering to the TPM values (before normalization)
+    gene_vars = X_pd.var(axis=0)
+    threshold = gene_vars.quantile(0.10) #TODO: also try with quantile filtering
+    X_pd = X_pd.loc[:, gene_vars > threshold]
+
+    #Normalize TPM Values using log2 method
+    X_pd=np.log2(X_pd+1)
+    #x_cols=list(X_pd)
     #print(X_pd.head())
-    x_scaler = StandardScaler()
-    x_scaler.fit(X_pd)
-    X_pd=x_scaler.transform(X_pd)
-    X_pd=pd.DataFrame(X_pd, columns=x_cols, index=y.index)
+    #x_scaler = StandardScaler()
+    #x_scaler.fit(X_pd)
+    #X_pd=x_scaler.transform(X_pd)
+    #X_pd=pd.DataFrame(X_pd, columns=x_cols, index=y.index)
     #print(X_pd.head())
 
 
@@ -322,6 +346,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
         plt.tick_params(axis='both', which='major', labelsize=16)
         plt.title("Model Cancer Types", fontsize=25)
         pdf.savefig(bbox_inches='tight')
+        plt.close()
 
     #split the data so cancer types are representative of overall distribution
     #split into training and test data
@@ -351,6 +376,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
     if(visuals and not binary):
         #display the range of ic50 values (normalized)
@@ -363,6 +389,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
         #plt.tick_params(axis='both', which='major', labelsize=16)
         plt.title("IC50 Values in Training Set", fontsize=25)
         pdf.savefig(bbox_inches='tight')
+        plt.close()
 
         #produce the histogram
         plt.figure(figsize=(20, 20))
@@ -372,10 +399,11 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
         #plt.tick_params(axis='both', which='major', labelsize=16)
         plt.title("IC50 Values in Training Set", fontsize=25)
         pdf.savefig(bbox_inches='tight')
+        plt.close()
 
     #close the pdf of visuals if it was produced
     if(visuals):
         pdf.close()
 
-    return X_train, X_test, y_train, y_test, y_scaler
+    return X_train, X_test, y_train, y_test, y_scaler, new_drug_name
 

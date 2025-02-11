@@ -46,7 +46,7 @@ def parseArguments():
     parser.add_argument("-dOI", "--drugOfInterest", help="Drug of Interest", type=str, default="")
     parser.add_argument("-b", "--binary", help="Option to have a binary y", type=int, default=0)
     parser.add_argument("-v", "--visuals", help="Option to produce visuals", type=int, default=0)
-    parser.add_argument("-oP", "--outputPath", help="Location to store any output", type=str, default="")
+    parser.add_argument("-oP", "--outputPath", help="Location to store any output", type=str, default="./")
     parser.add_argument("-dM", "--developerMode", help="Whether to look at optional developer functions", type=int, default=0)
 
     # Print version
@@ -99,13 +99,17 @@ if __name__=="__main__":
     #preprocess data
     #option 1: one drug is specified
     if args.drugOfInterest !="":
-        #TODO: add a for loop that goes through each drug id with the specified drug name
-        X_train, X_test, y_train, y_test, y_scaler = preproc(rnaseq, drugdata, cancertypes, args.drugOfInterest, args.binary, args.visuals, args.outputPath, args.developerMode)
-        #y_test.to_csv(args.outputPath+args.drugOfInterest+'_y_test_set.csv')
-        if(args.binary):
-            print(classificationModels(X_train, X_test, y_train, y_test, args.drugOfInterest, args.visuals, args.outputPath))
-        else:
-            print(regressionModels(X_train, X_test, y_train, y_test, y_scaler, args.drugOfInterest, args.visuals, args.outputPath))
+        #retrieve all unique drug_ids associated with specified drug name
+        drugdata_subset=drugdata[drugdata['DRUG_NAME']==args.drugOfInterest]
+        drug_ids=drugdata_subset['DRUG_ID'].unique()
+        for did in drug_ids:
+            X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, cancertypes, args.drugOfInterest, did, args.binary, args.visuals, args.outputPath, args.developerMode)
+            y_train.to_csv(args.outputPath+new_doi+'_y_test_set.csv')
+            if(args.binary):
+                print(classificationModels(X_train, X_test, y_train, y_test, new_doi, args.visuals, args.outputPath))
+            else:
+                print(regressionModels(X_train, X_test, y_train, y_test, y_scaler, new_doi, args.visuals, args.outputPath))
+        
         print("yay")
     else: #TODO: loop through all the drugs here, figure out how im gonna store results
         #maybe I could just go straight into training from within the for loop?

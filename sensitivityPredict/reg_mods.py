@@ -49,6 +49,9 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
     rmse_str="RMSE: "+str(rmse_un)
 
+    #calculate pearson correlation
+    correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+    pcorr_str = "Pearson correlation: "+ str(correlation)
 
     #TODO: adjust for this model
     # Add a page for print statements (text)
@@ -59,7 +62,8 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
             avg_rmse,
             std_rmse,
             r2_str,
-            rmse_str]
+            rmse_str,
+            pcorr_str]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)
@@ -68,10 +72,8 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
         # Create a scatter plot
         plt.figure(figsize=(20, 20))
         plt.scatter(y_test.values.ravel(), y_pred, color='blue', alpha=0.5)
-
         # Plot the diagonal line where y_true = y_pred
         plt.plot([min(y_test.values.ravel()), max(y_test.values.ravel())], [min(y_test.values.ravel()), max(y_test.values.ravel())], color='red', linestyle='--')
-
         # Add labels and title
         plt.xlabel('True Values (y_true)', fontsize=30)
         plt.ylabel('Predicted Values (y_pred)', fontsize=30)
@@ -80,23 +82,22 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
         # Show the plot
         plt.grid(True)
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
         # Create a scatter plot
         plt.figure(figsize=(20, 20))
         plt.scatter(y_test_unnorm, y_pred_unnorm, color='blue', alpha=0.5)
-
         # Plot the diagonal line where y_true = y_pred
         plt.plot([min(y_test_unnorm), max(y_test_unnorm)], [min(y_test_unnorm), max(y_test_unnorm)], color='red', linestyle='--')
-
         # Add labels and title
         plt.xlabel('True Values (y_true)', fontsize=30)
         plt.ylabel('Predicted Values (y_pred)', fontsize=30)
         plt.title('True vs. Predicted Values (Unnormalized)', fontsize=35)
         plt.tick_params(axis='both', which='major', labelsize=20)
-
         # Show the plot
         plt.grid(True)
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
     return 0
 
@@ -127,7 +128,7 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
     coefs_named=pd.Series(data=coefs, index=X_test.columns.tolist(), name="Coefficients")
     # Sort the Series by absolute value
     coefs_named = coefs_named.reindex(coefs_named.abs().sort_values(ascending=False).index)
-    coefs_named = coefs_named[0:100] #TODO: have this instead just be all coefs !=0
+    coefs_named = coefs_named[coefs_named!=0] 
     coefs_named.to_csv(outpath+doi+'_top_coefs.csv')
 
     #predict y values for test data
@@ -146,6 +147,9 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
     rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
     rmse_str="RMSE: "+str(rmse_un)
 
+    #calculate pearson correlation
+    correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+    pcorr_str = "Pearson correlation: "+ str(correlation)
 
     # Add a page for print statements (text)
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
@@ -155,7 +159,8 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
             avg_rmse,
             std_rmse,
             r2_str,
-            rmse_str]
+            rmse_str,
+            pcorr_str]
     txt = "\n".join(txt)
     ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
     pdf.savefig(fig)
@@ -164,36 +169,32 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
         # Create a scatter plot
         plt.figure(figsize=(20, 20))
         plt.scatter(y_test.values.ravel(), y_pred, color='blue', alpha=0.5)
-
         # Plot the diagonal line where y_true = y_pred
         plt.plot([min(y_test.values.ravel()), max(y_test.values.ravel())], [min(y_test.values.ravel()), max(y_test.values.ravel())], color='red', linestyle='--')
-
         # Add labels and title
         plt.xlabel('True Values (y_true)', fontsize=30)
         plt.ylabel('Predicted Values (y_pred)', fontsize=30)
         plt.title('True vs. Predicted Values', fontsize=35)
         plt.tick_params(axis='both', which='major', labelsize=20)
-
         # Show the plot
         plt.grid(True)
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
         # Create a scatter plot
         plt.figure(figsize=(20, 20))
         plt.scatter(y_test_unnorm, y_pred_unnorm, color='blue', alpha=0.5)
-
         # Plot the diagonal line where y_true = y_pred
         plt.plot([min(y_test_unnorm), max(y_test_unnorm)], [min(y_test_unnorm), max(y_test_unnorm)], color='red', linestyle='--')
-
         # Add labels and title
         plt.xlabel('True Values (y_true)', fontsize=30)
         plt.ylabel('Predicted Values (y_pred)', fontsize=30)
         plt.title('True vs. Predicted Values (Unnormalized)', fontsize=35)
         plt.tick_params(axis='both', which='major', labelsize=20)
-
         # Show the plot
         plt.grid(True)
-        pdf.savefig( bbox_inches='tight')  
+        pdf.savefig( bbox_inches='tight')
+        plt.close()  
 
 
         #plot coefficient values
@@ -206,6 +207,7 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
         plt.ylabel('Coefficients', fontsize=30)
         plt.tick_params(axis='both', which='major', labelsize=25) 
         pdf.savefig( bbox_inches='tight')  
+        plt.close()
 
     return 0
 

@@ -94,6 +94,7 @@ def logreg(X_train, X_test, y_train, y_test, pdf, visuals):
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
         # Plot the PR curve
         plt.figure(figsize=(20, 20))
@@ -106,6 +107,7 @@ def logreg(X_train, X_test, y_train, y_test, pdf, visuals):
         plt.legend(fontsize=20)
         plt.grid()
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
     return accuracy(y_pred, y_test.values.ravel())
 
@@ -178,6 +180,7 @@ def lda(X_train, X_test, y_train, y_test, pdf, visuals):
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
         # Plot the PR curve
         plt.figure(figsize=(20, 20))
@@ -190,6 +193,7 @@ def lda(X_train, X_test, y_train, y_test, pdf, visuals):
         plt.legend(fontsize=20)
         plt.grid()
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
     return accuracy(y_pred, y_test.values.ravel())
 
@@ -264,6 +268,7 @@ def knn(X_train, X_test, y_train, y_test, pdf, visuals):
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
         # Plot the PR curve
         plt.figure(figsize=(20, 20))
@@ -276,6 +281,7 @@ def knn(X_train, X_test, y_train, y_test, pdf, visuals):
         plt.legend(fontsize=20)
         plt.grid()
         pdf.savefig( bbox_inches='tight')
+        plt.close()
 
 
     return accuracy(y_pred, y_test.values.ravel())
