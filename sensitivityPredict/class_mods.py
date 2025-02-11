@@ -85,11 +85,12 @@ def logreg(X_train, X_test, y_train, y_test, pdf, visuals):
                 combined_df.iloc[i,0]="Sensitive"
 
         #produce the histogram
-        plt.figure(figsize=(20, 20))
+        plt.figure(figsize=(30, 30))
         sb.histplot(data=combined_df, x='Sensitivity', hue='dataset', multiple='dodge')
-        plt.title("Logistic Regression Classification", fontsize=25)
-        plt.xlabel('Sensitivity', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
+        plt.title("Logistic Regression Classification", fontsize=30)
+        plt.xlabel('Sensitivity', fontsize=25)
+        plt.ylabel('Count', fontsize=25)
+        plt.tick_params(axis='both', which='major', labelsize=20)
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
@@ -98,10 +99,11 @@ def logreg(X_train, X_test, y_train, y_test, pdf, visuals):
         plt.figure(figsize=(20, 20))
         plt.plot(recall, precision, marker='.', label='Precision-Recall Curve')
         # Add labels and title
-        plt.xlabel('Recall', fontsize=20)
-        plt.ylabel('Precision', fontsize=20)
-        plt.title('Precision-Recall Curve', fontsize=25)
-        plt.legend()
+        plt.xlabel('Recall', fontsize=30)
+        plt.ylabel('Precision', fontsize=30)
+        plt.title('Precision-Recall Curve', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20) 
+        plt.legend(fontsize=20)
         plt.grid()
         pdf.savefig( bbox_inches='tight')
 
@@ -167,11 +169,12 @@ def lda(X_train, X_test, y_train, y_test, pdf, visuals):
                 combined_df.iloc[i,0]="Sensitive"
 
         #produce the histogram
-        plt.figure(figsize=(20, 20))
+        plt.figure(figsize=(30, 30))
         sb.histplot(data=combined_df, x='Sensitivity', hue='dataset', multiple='dodge')
-        plt.title("Linear Discriminant Analysis Classification", fontsize=25)
-        plt.xlabel('Sensitivity', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
+        plt.title("Linear Discriminant Analysis Classification", fontsize=30)
+        plt.xlabel('Sensitivity', fontsize=25)
+        plt.ylabel('Count', fontsize=25)
+        plt.tick_params(axis='both', which='major', labelsize=20)
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
@@ -180,10 +183,11 @@ def lda(X_train, X_test, y_train, y_test, pdf, visuals):
         plt.figure(figsize=(20, 20))
         plt.plot(recall, precision, marker='.', label='Precision-Recall Curve')
         # Add labels and title
-        plt.xlabel('Recall', fontsize=20)
-        plt.ylabel('Precision', fontsize=20)
-        plt.title('Precision-Recall Curve', fontsize=25)
-        plt.legend()
+        plt.xlabel('Recall', fontsize=30)
+        plt.ylabel('Precision', fontsize=30)
+        plt.title('Precision-Recall Curve', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20)
+        plt.legend(fontsize=20)
         plt.grid()
         pdf.savefig( bbox_inches='tight')
 
@@ -253,9 +257,10 @@ def knn(X_train, X_test, y_train, y_test, pdf, visuals):
         #produce the histogram
         plt.figure(figsize=(20, 20))
         sb.histplot(data=combined_df, x='Sensitivity', hue='dataset', multiple='dodge')
-        plt.title("K-Nearest Neighbors Classification", fontsize=25)
-        plt.xlabel('Sensitivity', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
+        plt.title("K-Nearest Neighbors Classification", fontsize=30)
+        plt.xlabel('Sensitivity', fontsize=25)
+        plt.ylabel('Count', fontsize=25)
+        plt.tick_params(axis='both', which='major', labelsize=20)
         legend = plt.gca().get_legend()
         legend.set_title("Data")
         pdf.savefig( bbox_inches='tight')
@@ -264,10 +269,11 @@ def knn(X_train, X_test, y_train, y_test, pdf, visuals):
         plt.figure(figsize=(20, 20))
         plt.plot(recall, precision, marker='.', label='Precision-Recall Curve')
         # Add labels and title
-        plt.xlabel('Recall', fontsize=20)
-        plt.ylabel('Precision', fontsize=20)
-        plt.title('Precision-Recall Curve', fontsize=25)
-        plt.legend()
+        plt.xlabel('Recall', fontsize=30)
+        plt.ylabel('Precision', fontsize=30)
+        plt.title('Precision-Recall Curve', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20)
+        plt.legend(fontsize=20)
         plt.grid()
         pdf.savefig( bbox_inches='tight')
 

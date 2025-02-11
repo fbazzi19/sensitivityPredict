@@ -227,8 +227,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
 
     #X preprocessing
     #drop columns not needed
-    rnaseq=rnaseq.drop(columns=['model_name', 'data_source', 'gene_id', 'read_count', 'dataset_id',
-                    'id', 'fpkm', 'dataset_name']) 
+    rnaseq=rnaseq[['model_id', 'gene_symbol', 'tpm']]
     
     #remove genes that aren't present in every cell line
     num_cell_lines=len(rnaseq['model_id'].unique())
@@ -252,10 +251,8 @@ def preproc(rnaseq, drugdata, cancertypes, doi, binary, visuals, outpath, dM):
 
     #y preprocessing
     #drop unnecessary columns
-    drugdata=drugdata.drop(columns=['DATASET', 'NLME_RESULT_ID', 'NLME_CURVE_ID', 'COSMIC_ID', 'CELL_LINE_NAME',
-                        'TCGA_DESC', 'DRUG_ID', 'PUTATIVE_TARGET', 'PATHWAY_NAME', 'COMPANY_ID',
-                        'WEBRELEASE', 'AUC', 'Z_SCORE'])
-    
+    drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50']]
+    #'DATASET', 'DRUG_ID',
 
     #sort data by drug and cell line
     drugdata=drugdata.sort_values(by=['DRUG_NAME', 'SANGER_MODEL_ID'])

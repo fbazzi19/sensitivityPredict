@@ -73,10 +73,10 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
         plt.plot([min(y_test.values.ravel()), max(y_test.values.ravel())], [min(y_test.values.ravel()), max(y_test.values.ravel())], color='red', linestyle='--')
 
         # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=20)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=20)
-        plt.title('True vs. Predicted Values', fontsize=25)
-
+        plt.xlabel('True Values (y_true)', fontsize=30)
+        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
+        plt.title('True vs. Predicted Values', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20)
         # Show the plot
         plt.grid(True)
         pdf.savefig( bbox_inches='tight')
@@ -89,9 +89,10 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
         plt.plot([min(y_test_unnorm), max(y_test_unnorm)], [min(y_test_unnorm), max(y_test_unnorm)], color='red', linestyle='--')
 
         # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=20)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=20)
-        plt.title('True vs. Predicted Values (Unnormalized)', fontsize=25)
+        plt.xlabel('True Values (y_true)', fontsize=30)
+        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
+        plt.title('True vs. Predicted Values (Unnormalized)', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20)
 
         # Show the plot
         plt.grid(True)
@@ -126,7 +127,7 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
     coefs_named=pd.Series(data=coefs, index=X_test.columns.tolist(), name="Coefficients")
     # Sort the Series by absolute value
     coefs_named = coefs_named.reindex(coefs_named.abs().sort_values(ascending=False).index)
-    coefs_named = coefs_named[0:100]
+    coefs_named = coefs_named[0:100] #TODO: have this instead just be all coefs !=0
     coefs_named.to_csv(outpath+doi+'_top_coefs.csv')
 
     #predict y values for test data
@@ -168,9 +169,10 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
         plt.plot([min(y_test.values.ravel()), max(y_test.values.ravel())], [min(y_test.values.ravel()), max(y_test.values.ravel())], color='red', linestyle='--')
 
         # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=20)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=20)
-        plt.title('True vs. Predicted Values', fontsize=25)
+        plt.xlabel('True Values (y_true)', fontsize=30)
+        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
+        plt.title('True vs. Predicted Values', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20)
 
         # Show the plot
         plt.grid(True)
@@ -184,9 +186,10 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
         plt.plot([min(y_test_unnorm), max(y_test_unnorm)], [min(y_test_unnorm), max(y_test_unnorm)], color='red', linestyle='--')
 
         # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=20)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=20)
-        plt.title('True vs. Predicted Values (Unnormalized)', fontsize=25)
+        plt.xlabel('True Values (y_true)', fontsize=30)
+        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
+        plt.title('True vs. Predicted Values (Unnormalized)', fontsize=35)
+        plt.tick_params(axis='both', which='major', labelsize=20)
 
         # Show the plot
         plt.grid(True)
@@ -194,14 +197,14 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
 
 
         #plot coefficient values
-        plt.figure(figsize=(30, 30))
+        plt.figure(figsize=(20, 20))
         plt.bar(coefs_named.index[:20], coefs_named[:20])
         plt.axhline(0, color='gray', linewidth=0.8, linestyle='--')  # Add a horizontal line at 0 for reference
-        plt.title('Elastic Net Coefficients', fontsize=30)
+        plt.title('Elastic Net Coefficients', fontsize=35)
         plt.xticks(rotation=30, ha='right')
-        plt.xlabel('Genes', fontsize=25) 
-        plt.ylabel('Coefficients', fontsize=25)
-        plt.tick_params(axis='both', which='major', labelsize=20) 
+        plt.xlabel('Genes', fontsize=30) 
+        plt.ylabel('Coefficients', fontsize=30)
+        plt.tick_params(axis='both', which='major', labelsize=25) 
         pdf.savefig( bbox_inches='tight')  
 
     return 0
