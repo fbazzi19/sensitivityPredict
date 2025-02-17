@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import sklearn
 import scipy
+import scipy.stats as stats
 import nbformat
 import itertools
 import math
@@ -14,7 +15,7 @@ import matplotlib.backends.backend_pdf
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KernelDensity
 from scipy.integrate import simpson
-from scipy.stats import norm
+from scipy.stats import norm, shapiro, lognorm
 from sklearn.preprocessing import StandardScaler
 from lobico import lobico_calc
 
@@ -92,6 +93,43 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
     plt.close()
 
     return 0
+
+def xPreproc(rnaseq):
+    #drop columns not needed
+    rnaseq=rnaseq[['model_id', 'gene_symbol', 'fpkm']]
+    
+    #remove genes that aren't present in every cell line
+    num_cell_lines=len(rnaseq['model_id'].unique())
+    valcounts=rnaseq['gene_symbol'].value_counts()
+    rnaseq = rnaseq[rnaseq['gene_symbol'].isin(valcounts[valcounts == num_cell_lines].index)]
+
+
+    #sort by model id and gene symbol
+    rnaseq=rnaseq.sort_values(by=['model_id', 'gene_symbol'])
+
+    #restructuring the data into a matrix of tpm values
+    models=list(rnaseq['model_id'].unique())
+    first_model = models[0]
+    num_genes = len(rnaseq[rnaseq['model_id'] == first_model])
+    gene_symbols = rnaseq[rnaseq['model_id'] == first_model]['gene_symbol'].values
+    
+    X=np.zeros(shape=(len(rnaseq['model_id'].unique()), num_genes))
+    for i in range(len(models)):
+        start=0+(i*num_genes)
+        stop=num_genes+(i*num_genes)
+        X[i]=rnaseq['fpkm'][rnaseq.index[range(start, stop)]]
+
+
+    #creating a pandas data frame with the correct row and column names
+    X_pd=pd.DataFrame(X, columns=gene_symbols, index=models)
+
+    #TODO: convert TPM/fpkm into z-scores? if so, remove normalization
+    X_pd = X_pd + 1e-6
+    X_pd=np.log2(X_pd)
+    X_pd=X_pd.apply(lambda x: stats.zscore(x), axis=0)
+
+
+    return X_pd
 
 def yPreproc(drugdata, doi, did, visuals, pdf=None):
     """Adds Sensitivity and properly formats y data
@@ -243,28 +281,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         pdf = None
 
     #X preprocessing
-    #drop columns not needed
-    rnaseq=rnaseq[['model_id', 'gene_symbol', 'tpm']]
-    
-    #remove genes that aren't present in every cell line
-    num_cell_lines=len(rnaseq['model_id'].unique())
-    valcounts=rnaseq['gene_symbol'].value_counts()
-    rnaseq=rnaseq.drop(rnaseq.index[rnaseq['gene_symbol'].isin(valcounts.index[np.where(valcounts!=num_cell_lines)])])
-
-    #sort by model id and gene symbol
-    rnaseq=rnaseq.sort_values(by=['model_id', 'gene_symbol'])
-
-    #restructuring the data into a matrix of tpm values
-    models=list(rnaseq['model_id'].unique())
-    num_genes=len(rnaseq.index[rnaseq['model_id']=='SIDM01313'])
-    X=np.zeros(shape=(len(rnaseq['model_id'].unique()), num_genes))
-    for i in range(len(models)):
-        start=0+(i*num_genes)
-        stop=num_genes+(i*num_genes)
-        X[i]=rnaseq['tpm'][rnaseq.index[range(start, stop)]]
-
-    #creating a pandas data frame with the correct row and column names
-    X_pd=pd.DataFrame(X, columns=rnaseq['gene_symbol'][rnaseq.index[rnaseq['model_id']=='SIDM01313']], index=models)
+    X_pd=xPreproc(rnaseq)
 
     #y preprocessing
     #drop unnecessary columns
@@ -304,7 +321,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     X_pd = X_pd.loc[:, gene_vars > threshold]
 
     #Normalize TPM Values using log2 method
-    X_pd=np.log2(X_pd+1)
+    #X_pd=np.log2(X_pd+1)
     #x_cols=list(X_pd)
     #print(X_pd.head())
     #x_scaler = StandardScaler()
