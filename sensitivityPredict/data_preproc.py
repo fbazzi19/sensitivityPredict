@@ -306,18 +306,12 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     y=final_y(y, binary)
     #print(y.value_counts('SANGER_MODEL_ID')[y.value_counts('SANGER_MODEL_ID')>1])
     
-    #Should not be needed anymore
-    # remove any duplicate cell lines from y
-    #mask = y.index.duplicated(keep='last')
-    #y = y[~mask]
-
-    
     #intersect cancer types with model ids from y
     cancertypes=cancertypes[cancertypes['model_id'].isin(y.index)]
 
-    #TODO: Apply variance filtering to the TPM values (before normalization)
+    #Apply variance filtering 
     gene_vars = X_pd.var(axis=0)
-    threshold = gene_vars.quantile(0.10) #TODO: also try with quantile filtering
+    threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
     X_pd = X_pd.loc[:, gene_vars > threshold]
 
     #Normalize TPM Values using log2 method

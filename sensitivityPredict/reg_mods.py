@@ -12,11 +12,13 @@ from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNe
 from sklearn.neighbors import KNeighborsClassifier, KernelDensity
 from sklearn.manifold import TSNE
 from sklearn.svm import SVC
-from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler, MaxAbsScaler
+from scipy.sparse import csr_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
 from cross_val import cross_val
 from shuffle_eval import shuffle_eval
+from figures import scatt_plot
 
 def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     model=LinearRegression()
@@ -69,37 +71,13 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     pdf.savefig(fig)
 
     if(visuals):
-        # Create a scatter plot
-        plt.figure(figsize=(20, 20))
-        plt.scatter(y_test.values.ravel(), y_pred, color='blue', alpha=0.5)
-        # Plot the diagonal line where y_true = y_pred
-        plt.plot([min(y_test.values.ravel()), max(y_test.values.ravel())], [min(y_test.values.ravel()), max(y_test.values.ravel())], color='red', linestyle='--')
-        # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=30)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
-        plt.title('True vs. Predicted Values', fontsize=35)
-        plt.tick_params(axis='both', which='major', labelsize=20)
-        # Show the plot
-        plt.grid(True)
-        pdf.savefig( bbox_inches='tight')
-        plt.close()
+        scatt_plot(y_test.values.ravel(), y_pred, pdf, normalized=True)
 
-        # Create a scatter plot
-        plt.figure(figsize=(20, 20))
-        plt.scatter(y_test_unnorm, y_pred_unnorm, color='blue', alpha=0.5)
-        # Plot the diagonal line where y_true = y_pred
-        plt.plot([min(y_test_unnorm), max(y_test_unnorm)], [min(y_test_unnorm), max(y_test_unnorm)], color='red', linestyle='--')
-        # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=30)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
-        plt.title('True vs. Predicted Values (Unnormalized)', fontsize=35)
-        plt.tick_params(axis='both', which='major', labelsize=20)
-        # Show the plot
-        plt.grid(True)
-        pdf.savefig( bbox_inches='tight')
-        plt.close()
+        scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
 
     return 0
+
+
 
 def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outpath):
     model=ElasticNet(alpha=1, l1_ratio=0.5, max_iter=10000, random_state=42, selection='random')
@@ -107,7 +85,7 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
                 'l1_ratio': np.linspace(0.01, 1, 5),
                 'max_iter': [10000],
                 'random_state': [42],
-                'selection': ['random']}
+                'selection': ['random', 'cyclic']}
     
     #create a scorer and conduct cross validation
     scorer=sklearn.metrics.make_scorer(root_mean_squared_error, greater_is_better=False)
@@ -166,48 +144,9 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
     pdf.savefig(fig)
 
     if(visuals):
-        # Create a scatter plot
-        plt.figure(figsize=(20, 20))
-        plt.scatter(y_test.values.ravel(), y_pred, color='blue', alpha=0.5)
-        # Plot the diagonal line where y_true = y_pred
-        plt.plot([min(y_test.values.ravel()), max(y_test.values.ravel())], [min(y_test.values.ravel()), max(y_test.values.ravel())], color='red', linestyle='--')
-        # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=30)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
-        plt.title('True vs. Predicted Values', fontsize=35)
-        plt.tick_params(axis='both', which='major', labelsize=20)
-        # Show the plot
-        plt.grid(True)
-        pdf.savefig( bbox_inches='tight')
-        plt.close()
+        scatt_plot(y_test.values.ravel(), y_pred, pdf, normalized=True)
 
-        # Create a scatter plot
-        plt.figure(figsize=(20, 20))
-        plt.scatter(y_test_unnorm, y_pred_unnorm, color='blue', alpha=0.5)
-        # Plot the diagonal line where y_true = y_pred
-        plt.plot([min(y_test_unnorm), max(y_test_unnorm)], [min(y_test_unnorm), max(y_test_unnorm)], color='red', linestyle='--')
-        # Add labels and title
-        plt.xlabel('True Values (y_true)', fontsize=30)
-        plt.ylabel('Predicted Values (y_pred)', fontsize=30)
-        plt.title('True vs. Predicted Values (Unnormalized)', fontsize=35)
-        plt.tick_params(axis='both', which='major', labelsize=20)
-        # Show the plot
-        plt.grid(True)
-        pdf.savefig( bbox_inches='tight')
-        plt.close()  
-
-
-        #plot coefficient values
-        plt.figure(figsize=(20, 20))
-        plt.bar(coefs_named.index[:20], coefs_named[:20])
-        plt.axhline(0, color='gray', linewidth=0.8, linestyle='--')  # Add a horizontal line at 0 for reference
-        plt.title('Elastic Net Coefficients', fontsize=35)
-        plt.xticks(rotation=30, ha='right')
-        plt.xlabel('Genes', fontsize=30) 
-        plt.ylabel('Coefficients', fontsize=30)
-        plt.tick_params(axis='both', which='major', labelsize=25) 
-        pdf.savefig( bbox_inches='tight')  
-        plt.close()
+        scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
 
     return 0
 
