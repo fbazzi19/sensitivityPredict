@@ -6,6 +6,7 @@ import math
 import seaborn as sb
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
+import joblib
 
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet, Ridge
@@ -18,19 +19,25 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
 from cross_val import cross_val
 from shuffle_eval import shuffle_eval
-from figures import scatt_plot
+from figures import scatt_plot, reg_txt_pg
 
-def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
+def linreg(X_train, X_test, y_train, y_test, y_scaler, visuals, pdf=None):
     model=LinearRegression()
     #print(y_train)
 
     #perform shuffled split evaluation
     metrics=shuffle_eval(X_train, y_train, model, binary=0, y_scaler=y_scaler)
     # Calculate average and standard deviation of metrics
-    avg_metric = np.mean(metrics)
-    std_metric = np.std(metrics)
-    avg_rmse="Average RMSE over 50 splits: "+str(avg_metric)
-    std_rmse="Standard Deviation of RMSE: "+str(std_metric)
+    rmse_values = [metric['rmse'] for metric in metrics]
+    pearson_values = [metric['pearson_corr'] for metric in metrics]
+    avg_rmse_val = np.mean(rmse_values)
+    std_rmse_val = np.std(rmse_values)
+    avg_rmse="Average RMSE over 50 splits: "+str(avg_rmse_val)
+    std_rmse="Standard Deviation of RMSE: "+str(std_rmse_val)
+    avg_pcorr_val = np.mean(pearson_values)
+    std_pcorr_val = np.std(pearson_values)
+    avg_pcorr="Average Pearson Correlation over 50 splits: "+str(avg_pcorr_val)
+    std_pcorr="Standard Deviation of Pearson Correlation: "+str(std_pcorr_val)
 
     #fit the model
     model.fit(X_train, y_train.values.ravel())
@@ -55,37 +62,23 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals):
     correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
     pcorr_str = "Pearson correlation: "+ str(correlation)
 
-    #TODO: adjust for this model
-    # Add a page for print statements (text)
-    fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
-    ax.axis('off')  # Turn off axes for text-only page
-    # Add the text to the figure: accuracy
-    txt= ["Linear Regression", 
-            avg_rmse,
-            std_rmse,
-            r2_str,
-            rmse_str,
-            pcorr_str]
-    txt = "\n".join(txt)
-    ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
-    pdf.savefig(fig)
-
     if(visuals):
+        # Add a page for print statements (text)
+        reg_txt_pg(avg_rmse, std_rmse, avg_pcorr, std_pcorr, r2_str, rmse_str, pcorr_str, pdf, "Linear Regression")
+
         scatt_plot(y_test.values.ravel(), y_pred, pdf, normalized=True)
 
         scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
 
-    return 0
+    return model
 
-
-
-def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outpath):
+def elastnet(X_train, X_test, y_train, y_test, y_scaler, visuals, doi, outpath, pdf=None):
     model=ElasticNet(alpha=1, l1_ratio=0.5, max_iter=10000, random_state=42, selection='random')
-    param_grid = {'alpha': [0.001,0.01,0.1,1,10,100],
-                'l1_ratio': np.linspace(0.01, 1, 5),
+    param_grid = {'alpha': [0.0001, 0.001,0.01,0.1,1,10,100],
+                'l1_ratio': np.linspace(0.01, 1, 10),
                 'max_iter': [10000],
                 'random_state': [42],
-                'selection': ['random', 'cyclic']}
+                'selection': ['random']} #not using cyclic because it doesnt converge even at 50000
     
     #create a scorer and conduct cross validation
     scorer=sklearn.metrics.make_scorer(root_mean_squared_error, greater_is_better=False)
@@ -95,19 +88,26 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
     #perform shuffled split evaluation
     metrics=shuffle_eval(X_train, y_train, model, binary=0, y_scaler=y_scaler)
     # Calculate average and standard deviation of metrics
-    avg_metric = np.mean(metrics)
-    std_metric = np.std(metrics)
-    avg_rmse="Average RMSE over 50 splits: "+str(avg_metric)
-    std_rmse="Standard Deviation of RMSE: "+str(std_metric)
+    rmse_values = [metric['rmse'] for metric in metrics]
+    pearson_values = [metric['pearson_corr'] for metric in metrics]
+    avg_rmse_val = np.mean(rmse_values)
+    std_rmse_val = np.std(rmse_values)
+    avg_rmse="Average RMSE over 50 splits: "+str(avg_rmse_val)
+    std_rmse="Standard Deviation of RMSE: "+str(std_rmse_val)
+    avg_pcorr_val = np.mean(pearson_values)
+    std_pcorr_val = np.std(pearson_values)
+    avg_pcorr="Average Pearson Correlation over 50 splits: "+str(avg_pcorr_val)
+    std_pcorr="Standard Deviation of Pearson Correlation: "+str(std_pcorr_val)
 
     model.fit(X_train, y_train.values.ravel())
-    #get the coefficients of the model
-    coefs=model.coef_
-    coefs_named=pd.Series(data=coefs, index=X_test.columns.tolist(), name="Coefficients")
-    # Sort the Series by absolute value
-    coefs_named = coefs_named.reindex(coefs_named.abs().sort_values(ascending=False).index)
-    coefs_named = coefs_named[coefs_named!=0] 
-    coefs_named.to_csv(outpath+doi+'_top_coefs.csv')
+    if(visuals):
+        #get the coefficients of the model
+        coefs=model.coef_
+        coefs_named=pd.Series(data=coefs, index=X_test.columns.tolist(), name="Coefficients")
+        # Sort the Series by absolute value
+        coefs_named = coefs_named.reindex(coefs_named.abs().sort_values(ascending=False).index)
+        coefs_named = coefs_named[coefs_named!=0] 
+        coefs_named.to_csv(outpath+doi+'_top_coefs.csv')
 
     #predict y values for test data
     y_pred=model.predict(X_test)
@@ -129,36 +129,30 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outp
     correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
     pcorr_str = "Pearson correlation: "+ str(correlation)
 
-    # Add a page for print statements (text)
-    fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
-    ax.axis('off')  # Turn off axes for text-only page
-    # Add the text to the figure: accuracy
-    txt= ["Elastic Net Regression",
-            avg_rmse,
-            std_rmse,
-            r2_str,
-            rmse_str,
-            pcorr_str]
-    txt = "\n".join(txt)
-    ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
-    pdf.savefig(fig)
-
     if(visuals):
+        # Add a page for print statements (text)
+        reg_txt_pg(avg_rmse, std_rmse, avg_pcorr, std_pcorr, r2_str, rmse_str, pcorr_str, pdf, "Elastic Net Regression")
+
         scatt_plot(y_test.values.ravel(), y_pred, pdf, normalized=True)
 
         scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
 
-    return 0
+    return model
 
 def regressionModels(X_train, X_test, y_train, y_test, y_scaler, doi, visuals, outpath):
-    #open a pdf to place text results and (optional) visuals into
-    doinospace=doi.replace(" ", "")
-    outfile=outpath+doi+"_regression.pdf"
-    pdf = matplotlib.backends.backend_pdf.PdfPages(outfile)
+    pdf=None
+    if (visuals):
+        #open a pdf to place text results and (optional) visuals into
+        outfile=outpath+doi+"_regression.pdf"
+        pdf = matplotlib.backends.backend_pdf.PdfPages(outfile)
 
-    linreg(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals)
-    elastnet(X_train, X_test, y_train, y_test, y_scaler, pdf, visuals, doi, outpath)
+    linreg_model=linreg(X_train, X_test, y_train, y_test, y_scaler, visuals, pdf)
+    elastnet_model=elastnet(X_train, X_test, y_train, y_test, y_scaler, visuals, doi, outpath, pdf)
 
-    pdf.close()
+    #pickle the model
+    joblib.dump(elastnet_model, outpath+doi+"_elastnet_model.pkl") 
+
+    if(visuals):
+        pdf.close()
 
     return "<3"

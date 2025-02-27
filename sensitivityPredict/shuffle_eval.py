@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import precision_recall_curve, auc, root_mean_squared_error
 
 def shuffle_eval(X, y, model, binary=0, y_scaler=None):
+    #TODO: if not binary, also calculate pearson corr
     # ShuffleSplit for 50 iterations
     if (binary):
         ss_eval = StratifiedShuffleSplit(n_splits=50, test_size=0.25, random_state=None)
@@ -36,16 +37,16 @@ def shuffle_eval(X, y, model, binary=0, y_scaler=None):
             # Generate Precision-Recall curve
             precision, recall, thresholds = precision_recall_curve(y_test.values.ravel(), y_pred_prob)
             # Compute AUC-PR
-            metric = auc(recall, precision)
+            metrics.append(auc(recall, precision))
         else:
             #un-normalize the values
             y_test_unnorm= y_scaler.inverse_transform(y_test)
             y_pred_reshaped = y_pred.reshape(-1, 1)
-            y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
-            y_pred_unnorm = y_pred_unnorm.flatten()
+            y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped).flatten()
             #rmse
-            metric=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+            rmse=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+            #pearson
+            p_corr=np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+            metrics.append({'rmse': rmse, 'pearson_corr': p_corr})
         
-        
-        metrics.append(metric)
     return metrics

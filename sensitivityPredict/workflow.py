@@ -71,6 +71,8 @@ def parseArguments():
         sys.exit("Developer mode requires you have visuals on")
     if (args.developerMode and args.drugOfInterest==""):
         sys.exit("Developer mode requires the specification of one drug")
+    if (args.visuals and args.drugOfInterest==""):
+        sys.exit("Visuals are only available for a single drug run")
     #vP needs to be a file path, not a file
 
     return args
@@ -104,13 +106,24 @@ if __name__=="__main__":
         drug_ids=drugdata_subset['DRUG_ID'].unique()
         for did in drug_ids:
             X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, cancertypes, args.drugOfInterest, did, args.binary, args.visuals, args.outputPath, args.developerMode)
-            y_train.to_csv(args.outputPath+new_doi+'_y_test_set.csv')
+            y_train.to_csv(args.outputPath+new_doi+'_y_train_set.csv')
             if(args.binary):
                 print(classificationModels(X_train, X_test, y_train, y_test, new_doi, args.visuals, args.outputPath))
             else:
                 print(regressionModels(X_train, X_test, y_train, y_test, y_scaler, new_doi, args.visuals, args.outputPath))
         
         print("yay")
-    else: #TODO: loop through all the drugs here, figure out how im gonna store results
-        #maybe I could just go straight into training from within the for loop?
-        print("WIP")
+    else: #TODO: adjust what is returned and how. instead of pdfs, pickled models?
+        drugs=drugdata['DRUG_NAME'].unique()
+        for doi in drugs:
+            #retrieve all unique drug_ids associated with specified drug name
+            drugdata_subset=drugdata[drugdata['DRUG_NAME']==doi]
+            drug_ids=drugdata_subset['DRUG_ID'].unique()
+            for did in drug_ids:
+                X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, cancertypes, doi, did, args.binary, args.visuals, args.outputPath, args.developerMode)
+                if(args.binary):
+                    print(classificationModels(X_train, X_test, y_train, y_test, new_doi, args.visuals, args.outputPath))
+                else:
+                    print(regressionModels(X_train, X_test, y_train, y_test, y_scaler, new_doi, args.visuals, args.outputPath))
+            
+        print("Hooray! :)")

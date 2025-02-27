@@ -18,6 +18,7 @@ from scipy.integrate import simpson
 from scipy.stats import norm, shapiro, lognorm
 from sklearn.preprocessing import StandardScaler
 from lobico import lobico_calc
+from figures import ic50_violin_plot, ic50_bin_sens_plot, ic50_distb_hist
 
 
 
@@ -56,41 +57,13 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
         sensitivities[idxs]=((y['LN_IC50']<threshold)*1).values.reshape(-1, 1) #*1 converts bool into 0/1
 
     drugdatacopy=drugdata
-    drugdatacopy.insert(2, 'SENSITIVITY', sensitivities, True)
-    
-    #TODO: add some statistics related to this plot, like quartile or something
-    plt.figure(figsize=(20, 20))
-    sb.violinplot(x='DRUG_NAME', y='LN_IC50', data= drugdatacopy)#, inner='point') 
-    # Add horizontal lines
-    for i in range(len(thresholds)):
-        # Draw a horizontal line
-        plt.hlines(y=thresholds[i], xmin=i - 0.4, xmax=i + 0.4, color='red', linewidth=2)
-
-    plt.title("IC50 Distributions", fontsize=25)
-    plt.xticks([])
-    plt.xlabel("Drugs", fontsize=20)
-    plt.ylabel("ln(IC50)", fontsize=20)
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    pdf.savefig()
-    plt.close()
+    drugdatacopy.insert(2, 'SENSITIVITY', sensitivities, True) 
+    ic50_violin_plot(drugdatacopy, thresholds, len(thresholds), pdf)
 
     # Use only the first 20 rows of the data
     subset_data = drugdatacopy[drugdatacopy['DRUG_NAME'].isin(drugdatacopy['DRUG_NAME'].unique()[:20])]
     subset_thresholds = thresholds[0:20]
-    plt.figure(figsize=(20, 20))
-    sb.violinplot(x='DRUG_NAME', y='LN_IC50', data= subset_data)#, inner='point') 
-    # Add horizontal lines
-    for i in range(len(subset_thresholds)):
-        # Draw a horizontal line
-        plt.hlines(y=thresholds[i], xmin=i - 0.4, xmax=i + 0.4, color='red', linewidth=2)
-
-    plt.title("IC50 Distributions", fontsize=25)
-    plt.xticks([])
-    plt.xlabel("Drugs", fontsize=20)
-    plt.ylabel("ln(IC50)", fontsize=20)
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    pdf.savefig()
-    plt.close()
+    ic50_violin_plot(subset_data, thresholds, len(subset_thresholds), pdf)
 
     return 0
 
@@ -127,6 +100,7 @@ def xPreproc(rnaseq):
     X_pd = X_pd + 1e-6
     X_pd=np.log2(X_pd)
     X_pd=X_pd.apply(lambda x: stats.zscore(x), axis=0)
+    X_pd = X_pd.fillna(0)
 
 
     return X_pd
@@ -192,22 +166,8 @@ def yPreproc(drugdata, doi, did, visuals, pdf=None):
                 y_sorted.iloc[i,2]="Resistant"
             else:
                 y_sorted.iloc[i,2]="Sensitive"
-        plt.figure(figsize=(20, 20))
-        sb.scatterplot(data=y_sorted, x='SANGER_MODEL_ID', y='LN_IC50', hue='SENSITIVITY')
-        plt.title("IC50 Values Colored by Sensitivity", fontsize=25)
-        #since there is more than one min and max concentration for each drug, here I take the one that 
-        #occurs the most in the data
-        plt.axhline(y=np.log(y['MIN_CONC'].value_counts().idxmax()), linestyle="dashed", color="red",
-                        label='_nolegend_')
-        plt.axhline(y=np.log(y['MAX_CONC'].value_counts().idxmax()), linestyle="dashed", color="red",
-                        label='_nolegend_')
-        plt.xticks([])
-        plt.xlabel("Cell Lines", fontsize=20)
-        plt.ylabel("ln(IC50)", fontsize=20)
-        plt.legend(fontsize=18, title='Sensitivity', title_fontsize=18)
-        plt.tick_params(axis='both', which='major', labelsize=16)
-        pdf.savefig()
-        plt.close()
+
+        ic50_bin_sens_plot(y, y_sorted, pdf)
 
     return y, new_drug_name
 
@@ -239,7 +199,7 @@ def final_y(y, binary):
     return y
 
 
-def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, dM):
+def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, dM, genes=None):
     """Formats and cleans the data to be used in machine learning models
 
     Parameters
@@ -286,7 +246,6 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     #y preprocessing
     #drop unnecessary columns
     drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50', 'DATASET', 'DRUG_ID']]
-    #'DATASET', 'DRUG_ID',
 
     #sort data by drug and cell line
     drugdata=drugdata.sort_values(by=['DRUG_NAME', 'SANGER_MODEL_ID'])
@@ -309,10 +268,25 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     #intersect cancer types with model ids from y
     cancertypes=cancertypes[cancertypes['model_id'].isin(y.index)]
 
-    #Apply variance filtering 
-    gene_vars = X_pd.var(axis=0)
-    threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
-    X_pd = X_pd.loc[:, gene_vars > threshold]
+    #NOTE: this becomes a problem when dealing with the one v all, because variance differs,
+    #so we may end up with a different set of features (genes)
+    #TODO: add an optional input and return containing the genes that result from var filtering
+    #if genes given as input, don't do filtering by variance and just include those genes
+    #if genes not given, do filtering and return genes at end of function OR autosave
+    if genes is None:
+        gene_vars = X_pd.var(axis=0)
+        threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
+        X_pd = X_pd.loc[:, gene_vars > threshold]
+        genes=list(X_pd)
+        genes=pd.DataFrame(genes)
+        genes.to_csv(outpath+new_drug_name+'_model_genes.csv')
+    else:
+        X_pd=X_pd[genes['0']]
+
+    # Apply variance filtering 
+    #gene_vars = X_pd.var(axis=0)
+    #threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
+    #X_pd = X_pd.loc[:, gene_vars > threshold]
 
     #Normalize TPM Values using log2 method
     #X_pd=np.log2(X_pd+1)
@@ -362,7 +336,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     #split the data so cancer types are representative of overall distribution
     #split into training and test data
     X_train, X_test, y_train, y_test = train_test_split(
-        X_pd, y, stratify=cancertypes['cancer_type'], test_size=0.2, random_state=42)
+        X_pd, y, test_size=0.2, random_state=42)
 
     #distribution of test and train cancer types
     if(dM):
@@ -392,25 +366,9 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     if(visuals and not binary):
         #display the range of ic50 values (normalized)
         #in the test and training sets
-        #produce the histogram
-        plt.figure(figsize=(20, 20))
-        sb.histplot(data=y_train, x='LN_IC50')
-        #plt.xlabel('Cancer Types', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
-        #plt.tick_params(axis='both', which='major', labelsize=16)
-        plt.title("IC50 Values in Training Set", fontsize=25)
-        pdf.savefig(bbox_inches='tight')
-        plt.close()
-
-        #produce the histogram
-        plt.figure(figsize=(20, 20))
-        sb.histplot(data=y_test, x='LN_IC50')
-        #plt.xlabel('Cancer Types', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
-        #plt.tick_params(axis='both', which='major', labelsize=16)
-        plt.title("IC50 Values in Training Set", fontsize=25)
-        pdf.savefig(bbox_inches='tight')
-        plt.close()
+        ic50_distb_hist(y_train, pdf, test=False)
+        
+        ic50_distb_hist(y_test, pdf, test=True)
 
     #close the pdf of visuals if it was produced
     if(visuals):
