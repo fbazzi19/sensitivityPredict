@@ -150,7 +150,7 @@ def regressionModels(X_train, X_test, y_train, y_test, y_scaler, doi, visuals, o
     elastnet_model=elastnet(X_train, X_test, y_train, y_test, y_scaler, visuals, doi, outpath, pdf)
 
     #pickle the model
-    joblib.dump(elastnet_model, outpath+doi+"_elastnet_model.pkl") 
+    joblib.dump(elastnet_model, outpath+"/models/"+doi+"_elastnet_model.pkl") 
 
     if(visuals):
         pdf.close()

@@ -268,11 +268,9 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     #intersect cancer types with model ids from y
     cancertypes=cancertypes[cancertypes['model_id'].isin(y.index)]
 
-    #NOTE: this becomes a problem when dealing with the one v all, because variance differs,
-    #so we may end up with a different set of features (genes)
-    #TODO: add an optional input and return containing the genes that result from var filtering
+    
     #if genes given as input, don't do filtering by variance and just include those genes
-    #if genes not given, do filtering and return genes at end of function OR autosave
+    #if genes not given, do filtering and autosave
     if genes is None:
         gene_vars = X_pd.var(axis=0)
         threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
@@ -282,11 +280,6 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         genes.to_csv(outpath+new_drug_name+'_model_genes.csv')
     else:
         X_pd=X_pd[genes['0']]
-
-    # Apply variance filtering 
-    #gene_vars = X_pd.var(axis=0)
-    #threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
-    #X_pd = X_pd.loc[:, gene_vars > threshold]
 
     #Normalize TPM Values using log2 method
     #X_pd=np.log2(X_pd+1)

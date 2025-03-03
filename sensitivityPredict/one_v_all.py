@@ -92,6 +92,10 @@ if __name__=="__main__":
     #load in cancer type data
     cancertypes=pd.read_csv(args.modelListfile)
     cancertypes=cancertypes[['model_id', 'cancer_type']]
+
+    #name of drug model is for
+    model_drug_name=args.model[0:[pos for pos, char in enumerate(args.model) if char == "_"][-2]]
+    model_drug_name=model_drug_name.split("/")[-1]
     
     #set random seed for reproducibility
     np.random.seed(42)
@@ -105,7 +109,7 @@ if __name__=="__main__":
     metrics=[]
     drug_names=[]
     drugs=drugdata['DRUG_NAME'].unique()
-    for doi in drugs[0:20]:
+    for doi in drugs:
         #retrieve all unique drug_ids associated with specified drug name
         drugdata_subset=drugdata[drugdata['DRUG_NAME']==doi]
         drug_ids=drugdata_subset['DRUG_ID'].unique()
@@ -140,45 +144,7 @@ if __name__=="__main__":
 
             
     metrics_df=pd.DataFrame(metrics, index=drug_names, columns=['R2', 'RMSE', 'Pearson Correlation'])
-
-    #TODO:adjust pdf opening and closing
-    outfile=args.outputPath+"onealltest.pdf" #TODO: figure out better name
-    pdf = matplotlib.backends.backend_pdf.PdfPages(outfile)
-
-    #make a histogram of (pcorr?) and highlight highest values
-    xlabs_pcorr = ["" for x in range(metrics_df.shape[0])]
-    for i in range(metrics_df.shape[0]):
-        if metrics_df['Pearson Correlation'].iloc[i]>0.60:
-            xlabs_pcorr[i]=metrics_df.index[i]
-
-    #produce the barplot
-    plt.figure(figsize=(20, 20))
-    sb.barplot(data=metrics_df, x=metrics_df.index, y='Pearson Correlation')
-    plt.xticks(xlabs_pcorr, rotation=30, ha='right')
-    plt.xlabel('Drugs', fontsize=30)
-    plt.ylabel('Pcorr', fontsize=30)
-    plt.tick_params(axis='both', which='major', labelsize=20)
-    plt.title("Pearson Correlation", fontsize=35)
-    pdf.savefig(bbox_inches='tight')
-    plt.close()
-
-    #make a barplot of rmse and highlight highest values
-    xlabs_rmse = ["" for x in range(metrics_df.shape[0])]
-    for i in range(metrics_df.shape[0]):
-        if metrics_df['RMSE'].iloc[i]<1.40:
-            xlabs_rmse[i]=metrics_df.index[i]
-
-    #produce the barplot
-    plt.figure(figsize=(20, 20))
-    sb.barplot(data=metrics_df, x=metrics_df.index, y='RMSE')
-    plt.xticks(xlabs_rmse, rotation=30, ha='right')
-    plt.xlabel('Drugs', fontsize=30)
-    plt.ylabel('RMSE', fontsize=30)
-    plt.tick_params(axis='both', which='major', labelsize=20)
-    plt.title("Root Mean Squared Error", fontsize=35)
-    pdf.savefig(bbox_inches='tight')
-    plt.close()
-
-    pdf.close()
+    #send metrics to csv to try making figures with R
+    metrics_df.to_csv(args.outputPath+model_drug_name+'_oneall_metrics.csv')
     
     print("Hooray! :)")
