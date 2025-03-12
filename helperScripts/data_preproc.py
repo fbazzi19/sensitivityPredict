@@ -76,11 +76,10 @@ def xPreproc(rnaseq):
     valcounts=rnaseq['gene_symbol'].value_counts()
     rnaseq = rnaseq[rnaseq['gene_symbol'].isin(valcounts[valcounts == num_cell_lines].index)]
 
-
     #sort by model id and gene symbol
     rnaseq=rnaseq.sort_values(by=['model_id', 'gene_symbol'])
 
-    #restructuring the data into a matrix of tpm values
+    #restructuring the data into a matrix of fpkm values
     models=list(rnaseq['model_id'].unique())
     first_model = models[0]
     num_genes = len(rnaseq[rnaseq['model_id'] == first_model])
@@ -92,11 +91,10 @@ def xPreproc(rnaseq):
         stop=num_genes+(i*num_genes)
         X[i]=rnaseq['fpkm'][rnaseq.index[range(start, stop)]]
 
-
     #creating a pandas data frame with the correct row and column names
     X_pd=pd.DataFrame(X, columns=gene_symbols, index=models)
 
-    #TODO: convert TPM/fpkm into z-scores? if so, remove normalization
+    #Converting fpkm values into Z scores
     X_pd = X_pd + 1e-6
     X_pd=np.log2(X_pd)
     X_pd=X_pd.apply(lambda x: stats.zscore(x), axis=0)
@@ -128,9 +126,11 @@ def yPreproc(drugdata, doi, did, visuals, pdf=None):
     #subset of drugdata that only looks at the doi
     y=drugdata[drugdata['DRUG_NAME']==doi]
     #further subset that only looks at the did
-    y=y[y['DRUG_ID']==did]
+    y=y[y['DRUG_ID']==int(did)]
+    #get the drug name with no spaces
+    doinospace=doi.replace(" ", "")
     #adjust drug name to include dataset and id
-    y['DRUG_NAME'] = y['DATASET']+ "_"+ y['DRUG_NAME']+ "_"+y['DRUG_ID'].astype(str)
+    y['DRUG_NAME'] = y['DATASET']+ "_"+ doinospace+ "_"+y['DRUG_ID'].astype(str)
     new_drug_name=y['DRUG_NAME'].iloc[0]
     #drop the id and dataset columns
     y=y.drop(columns=['DRUG_ID', 'DATASET'])
@@ -235,7 +235,6 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         new_name=dataset+"_"+doinospace+"_"+did.astype(str)
 
         visfile=os.path.join(outpath, f"{new_name}.pdf")
-        #plt.style.use('seaborn')
         pdf = matplotlib.backends.backend_pdf.PdfPages(visfile)
     else:
         pdf = None
@@ -263,11 +262,9 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
 
     #final dropping of columns and sorting of y based on the type of model
     y=final_y(y, binary)
-    #print(y.value_counts('SANGER_MODEL_ID')[y.value_counts('SANGER_MODEL_ID')>1])
     
     #intersect cancer types with model ids from y
     cancertypes=cancertypes[cancertypes['model_id'].isin(y.index)]
-
     
     #if genes given as input, don't do filtering by variance and just include those genes
     #if genes not given, do filtering and autosave
@@ -277,37 +274,25 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         X_pd = X_pd.loc[:, gene_vars > threshold]
         genes=list(X_pd)
         genes=pd.DataFrame(genes)
-        genes.to_csv(outpath+new_drug_name+'_model_genes.csv')
+        os.makedirs(outpath+"/model_genes/", exist_ok=True)
+        genes.to_csv(outpath+"/model_genes/"+new_drug_name+'_model_genes.csv')
     else:
         X_pd=X_pd[genes['0']]
 
-    #Normalize TPM Values using log2 method
-    #X_pd=np.log2(X_pd+1)
-    #x_cols=list(X_pd)
-    #print(X_pd.head())
-    #x_scaler = StandardScaler()
-    #x_scaler.fit(X_pd)
-    #X_pd=x_scaler.transform(X_pd)
-    #X_pd=pd.DataFrame(X_pd, columns=x_cols, index=y.index)
-    #print(X_pd.head())
 
 
     #Normalize IC50 Values, if not binary
     if (not binary):
         #use a standard scaler
-        #print(y.head())
         y_scaler = StandardScaler()
         y_scaler.fit(y)
         y=y_scaler.transform(y)
         y=pd.DataFrame(y, columns=['LN_IC50'], index=X_pd.index)
-        #print(y.head())
     else:
         y_scaler=None
     
-
     #visualize the distribution of cancer types
     if (visuals):
-        #cancertypes.value_counts('cancer_type').index[0]
         xlabsct = ["" for x in range(len(cancertypes.value_counts('cancer_type')))]
         for i in range(len(cancertypes.value_counts('cancer_type'))):
             if cancertypes.value_counts('cancer_type').iloc[i]>30:

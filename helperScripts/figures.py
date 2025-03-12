@@ -7,14 +7,7 @@ import seaborn as sb
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 
-from sklearn.model_selection import GridSearchCV, cross_val_score
-from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet, Ridge
-from sklearn.neighbors import KNeighborsClassifier, KernelDensity
-from sklearn.manifold import TSNE
-from sklearn.svm import SVC
-from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
+from sklearn.metrics import classification_report
 
 def scatt_plot(y_test, y_pred, pdf, normalized=False):
     # Create a scatter plot
@@ -77,9 +70,7 @@ def ic50_distb_hist(y, pdf, test=False):
     #produce the histogram
     plt.figure(figsize=(20, 20))
     sb.histplot(data=y, x='LN_IC50')
-    #plt.xlabel('Cancer Types', fontsize=20)
     plt.ylabel('Count', fontsize=30)
-    #plt.tick_params(axis='both', which='major', labelsize=16)
     if (test):
         plt.title("IC50 Values in Test Set", fontsize=35)
     else:

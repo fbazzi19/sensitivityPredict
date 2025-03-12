@@ -13,9 +13,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, precision_recall_curve, auc, f1_score
-from cross_val import cross_val
-from shuffle_eval import shuffle_eval
-from figures import class_hist, pr_curve_plot, class_txt_pg
+from ../helperScripts/cross_val import cross_val
+from ../helperScripts/shuffle_eval import shuffle_eval
+from ../helperScripts/figures import class_hist, pr_curve_plot, class_txt_pg
 
 
 #accuracy= n_correct/n_total
@@ -218,11 +218,11 @@ def classificationModels(X_train, X_test, y_train, y_test, doi, visuals, outpath
     knn_model=knn(X_train, X_test, y_train, y_test, visuals, pdf)
 
     #pickle the models to output
-    joblib.dump(logreg_model, outpath+doi+"_logreg_model.pkl") 
-    joblib.dump(lda_model, outpath+doi+"_lda_model.pkl") 
-    joblib.dump(knn_model, outpath+doi+"_knn_model.pkl") 
+    #joblib.dump(logreg_model, outpath+doi+"_logreg_model.pkl") 
+    #joblib.dump(lda_model, outpath+doi+"_lda_model.pkl") 
+    #joblib.dump(knn_model, outpath+doi+"_knn_model.pkl") 
 
     if (visuals):
         pdf.close()
 
-    return ":)"
+    return "Completed Classification Models"

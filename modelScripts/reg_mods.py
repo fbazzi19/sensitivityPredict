@@ -1,4 +1,5 @@
 #library imports
+import os
 import pandas as pd
 import numpy as np
 import sklearn
@@ -6,7 +7,6 @@ import math
 import seaborn as sb
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
-import joblib
 
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet, Ridge
@@ -17,9 +17,9 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler, MaxAbsScal
 from scipy.sparse import csr_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
-from cross_val import cross_val
-from shuffle_eval import shuffle_eval
-from figures import scatt_plot, reg_txt_pg
+from ../helperScripts/cross_val import cross_val
+from ../helperScripts/shuffle_eval import shuffle_eval
+from ../helperScripts/figures import scatt_plot, reg_txt_pg
 
 def linreg(X_train, X_test, y_train, y_test, y_scaler, visuals, pdf=None):
     model=LinearRegression()
@@ -150,9 +150,10 @@ def regressionModels(X_train, X_test, y_train, y_test, y_scaler, doi, visuals, o
     elastnet_model=elastnet(X_train, X_test, y_train, y_test, y_scaler, visuals, doi, outpath, pdf)
 
     #pickle the model
+    os.makedirs(outpath+"/models/", exist_ok=True)
     joblib.dump(elastnet_model, outpath+"/models/"+doi+"_elastnet_model.pkl") 
 
     if(visuals):
         pdf.close()
 
-    return "<3"
+    return "Completed Regression Models"

@@ -4,10 +4,9 @@ import numpy as np
 import sklearn
 import math
 
-from sklearn.model_selection import GridSearchCV, StratifiedShuffleSplit, ShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit, ShuffleSplit
 from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet
 from sklearn.neighbors import KNeighborsClassifier, KernelDensity
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import precision_recall_curve, auc, root_mean_squared_error
 
 def shuffle_eval(X, y, model, binary=0, y_scaler=None):
