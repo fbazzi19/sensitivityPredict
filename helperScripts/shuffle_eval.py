@@ -38,14 +38,17 @@ def shuffle_eval(X, y, model, binary=0, y_scaler=None):
             # Compute AUC-PR
             metrics.append(auc(recall, precision))
         else:
+            
             #un-normalize the values
             y_test_unnorm= y_scaler.inverse_transform(y_test)
             y_pred_reshaped = y_pred.reshape(-1, 1)
             y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped).flatten()
+            y_test_unnorm=y_test
+
             #rmse
             rmse=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
             #pearson
-            p_corr=np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+            p_corr=np.corrcoef(y_test_unnorm.values.ravel(), y_pred_unnorm)[0, 1]
             metrics.append({'rmse': rmse, 'pearson_corr': p_corr})
         
     return metrics

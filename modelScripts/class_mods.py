@@ -13,9 +13,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, precision_recall_curve, auc, f1_score
-from ../helperScripts/cross_val import cross_val
-from ../helperScripts/shuffle_eval import shuffle_eval
-from ../helperScripts/figures import class_hist, pr_curve_plot, class_txt_pg
+#TODO:fix
+from helperScripts.cross_val import cross_val
+from helperScripts.shuffle_eval import shuffle_eval
+from helperScripts.figures import class_hist, pr_curve_plot, class_txt_pg
 
 
 #accuracy= n_correct/n_total

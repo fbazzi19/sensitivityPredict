@@ -13,5 +13,4 @@ DRUG_FILE="${OUTPUT_PATH}drugs_list.txt"
 #number of drugs
 NUM_ROWS=$(wc -l < "$DRUG_FILE")
 #sbatch call
-sbatch  --array=1-"$NUM_ROWS"%50 ./model_task.sh "$DRUG_FILE" "$INPUT_PATH" "$OUTPUT_PATH" "$GDSC_VER"
-
+sbatch  --array=1-"$NUM_ROWS"%50 ./oneall_task.sh "$DRUG_FILE" "$INPUT_PATH" "$OUTPUT_PATH" "$GDSC_VER"

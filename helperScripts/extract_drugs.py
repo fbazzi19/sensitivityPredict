@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import argparse
 
 if __name__=="__main__":
@@ -11,6 +12,7 @@ if __name__=="__main__":
     #find each unique drug name and id pair
     drugdata=pd.read_excel(args.drugdata)
     drugdata_subset = drugdata[['DRUG_NAME', 'DRUG_ID']].drop_duplicates()
+    #drugdata_subset['DRUG_NAME']=drugdata_subset['DRUG_NAME'].str.replace(" ", "")
     #output file name
     task_file = args.outputPath+"drugs_list.txt"
 

@@ -1,5 +1,6 @@
 #library imports
 import os
+import sys
 import pandas as pd
 import numpy as np
 import sklearn
@@ -7,6 +8,7 @@ import math
 import seaborn as sb
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
+import joblib
 
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet, Ridge
@@ -17,13 +19,13 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler, MaxAbsScal
 from scipy.sparse import csr_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
-from ../helperScripts/cross_val import cross_val
-from ../helperScripts/shuffle_eval import shuffle_eval
-from ../helperScripts/figures import scatt_plot, reg_txt_pg
+from helperScripts.cross_val import cross_val
+from helperScripts.shuffle_eval import shuffle_eval
+from helperScripts.figures import scatt_plot, reg_txt_pg
 
 def linreg(X_train, X_test, y_train, y_test, y_scaler, visuals, pdf=None):
+
     model=LinearRegression()
-    #print(y_train)
 
     #perform shuffled split evaluation
     metrics=shuffle_eval(X_train, y_train, model, binary=0, y_scaler=y_scaler)
@@ -45,30 +47,35 @@ def linreg(X_train, X_test, y_train, y_test, y_scaler, visuals, pdf=None):
     coefs= model.coef_
     #predict the values
     y_pred=model.predict(X_test)
-    #r2 score
-    r2 = r2_score(y_test.values.ravel(), y_pred)
-    r2_str="R2 score: "+str(r2)
 
     #un-normalize the values
-    y_test_unnorm= y_scaler.inverse_transform(y_test)
+    #y_test_unnorm= y_scaler.inverse_transform(y_test)
     y_pred_reshaped = y_pred.reshape(-1, 1)
     y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
     y_pred_unnorm = y_pred_unnorm.flatten()
+
+    #r2 score
+    r2 = r2_score(y_test.values.ravel(), y_pred_unnorm)
+    r2_str="R2 score: "+str(r2)
+
     #rmse
-    rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+    #rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+    
+    rmse_un=root_mean_squared_error(y_test.values.ravel(), y_pred_unnorm)
     rmse_str="RMSE: "+str(rmse_un)
 
     #calculate pearson correlation
-    correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+    #correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+    correlation = np.corrcoef(y_test.values.ravel(), y_pred_unnorm)[0, 1]
     pcorr_str = "Pearson correlation: "+ str(correlation)
 
     if(visuals):
         # Add a page for print statements (text)
         reg_txt_pg(avg_rmse, std_rmse, avg_pcorr, std_pcorr, r2_str, rmse_str, pcorr_str, pdf, "Linear Regression")
 
-        scatt_plot(y_test.values.ravel(), y_pred, pdf, normalized=True)
+        scatt_plot(y_test.values.ravel(), y_pred_unnorm, pdf, normalized=True)
 
-        scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
+        #scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
 
     return model
 
@@ -112,30 +119,35 @@ def elastnet(X_train, X_test, y_train, y_test, y_scaler, visuals, doi, outpath, 
     #predict y values for test data
     y_pred=model.predict(X_test)
 
-    #r2 score
-    r2 = r2_score(y_test.values.ravel(), y_pred)
-    r2_str="R2 score: "+str(r2)
-
+    
     #un-normalize the values
-    y_test_unnorm= y_scaler.inverse_transform(y_test)
+    #y_test_unnorm= y_scaler.inverse_transform(y_test)
     y_pred_reshaped = y_pred.reshape(-1, 1)
     y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
     y_pred_unnorm = y_pred_unnorm.flatten()
+
+    #r2 score
+    r2 = r2_score(y_test.values.ravel(), y_pred_unnorm)
+    r2_str="R2 score: "+str(r2)
+
     #rmse
-    rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+    #rmse_un=root_mean_squared_error(y_test_unnorm, y_pred_unnorm)
+    
+    rmse_un=root_mean_squared_error(y_test.values.ravel(), y_pred_unnorm)
     rmse_str="RMSE: "+str(rmse_un)
 
     #calculate pearson correlation
-    correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+    #correlation = np.corrcoef(y_test_unnorm.ravel(), y_pred_unnorm)[0, 1]
+    correlation = np.corrcoef(y_test.values.ravel(), y_pred_unnorm)[0, 1]
     pcorr_str = "Pearson correlation: "+ str(correlation)
 
     if(visuals):
         # Add a page for print statements (text)
         reg_txt_pg(avg_rmse, std_rmse, avg_pcorr, std_pcorr, r2_str, rmse_str, pcorr_str, pdf, "Elastic Net Regression")
 
-        scatt_plot(y_test.values.ravel(), y_pred, pdf, normalized=True)
+        scatt_plot(y_test.values.ravel(), y_pred_unnorm, pdf, normalized=True)
 
-        scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
+        #scatt_plot(y_test_unnorm, y_pred_unnorm, pdf, normalized=False)
 
     return model
 

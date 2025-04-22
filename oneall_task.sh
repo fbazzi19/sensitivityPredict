@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=DRUG_MODEL
+#SBATCH --job-name=MODEL_EVAL
 #SBATCH --partition=cpuq
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=32GB
@@ -26,5 +26,8 @@ LINE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$DRUG_FILE")
 # Split the line into drug_name and drug_id
 IFS=',' read -r DRUG_NAME DRUG_ID <<< "$LINE"
 
+# Remove spaces from DRUG_NAME
+DRUG_NAME=$(echo "$DRUG_NAME" | tr -d ' ')
+
 # Run the Python script
-python3 ./workflow.py -rF "${INPUT_PATH}rnaseq_latest.csv.gz" -dF "${INPUT_PATH}GDSC${GDSC_VER}_fitted_dose_response_27Oct23.xlsx" -mlF "${INPUT_PATH}model_list_latest.csv.gz" -dOI "$DRUG_NAME" -dID "$DRUG_ID" -oP "$OUTPUT_PATH" -m 1
+python3 ./one_v_all.py -m "${OUTPUT_PATH}models/GDSC${GDSC_VER}_${DRUG_NAME}_${DRUG_ID}_elastnet_model.pkl" -g "${OUTPUT_PATH}model_genes/GDSC${GDSC_VER}_${DRUG_NAME}_${DRUG_ID}_model_genes.csv" -rF "${INPUT_PATH}rnaseq_latest.csv.gz" -dF "${INPUT_PATH}GDSC${GDSC_VER}_fitted_dose_response_27Oct23.xlsx" -mlF "${INPUT_PATH}model_list_latest.csv.gz" -oP "$OUTPUT_PATH"

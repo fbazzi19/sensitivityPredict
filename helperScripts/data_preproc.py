@@ -1,5 +1,7 @@
 #library imports
 import os
+import os.path as path
+import sys
 import pandas as pd
 import numpy as np
 import sklearn
@@ -17,8 +19,10 @@ from sklearn.neighbors import KernelDensity
 from scipy.integrate import simpson
 from scipy.stats import norm, shapiro, lognorm
 from sklearn.preprocessing import StandardScaler
-from lobico import lobico_calc
-from figures import ic50_violin_plot, ic50_bin_sens_plot, ic50_distb_hist
+from filelock import FileLock
+from helperScripts.lobico import lobico_calc
+from helperScripts.figures import ic50_violin_plot, ic50_bin_sens_plot, ic50_distb_hist
+
 
 
 
@@ -69,8 +73,12 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
 
 def xPreproc(rnaseq):
     #drop columns not needed
-    rnaseq=rnaseq[['model_id', 'gene_symbol', 'fpkm']]
+    rnaseq=rnaseq.drop_duplicates(subset=['model_id', 'gene_symbol'])
+    rnaseq=rnaseq[['model_id', 'gene_symbol', 'rsem_fpkm']]#rsem_tm
     
+    #remove rows where there isn't an value
+    rnaseq=rnaseq.dropna(subset=['rsem_fpkm'])
+
     #remove genes that aren't present in every cell line
     num_cell_lines=len(rnaseq['model_id'].unique())
     valcounts=rnaseq['gene_symbol'].value_counts()
@@ -89,17 +97,18 @@ def xPreproc(rnaseq):
     for i in range(len(models)):
         start=0+(i*num_genes)
         stop=num_genes+(i*num_genes)
-        X[i]=rnaseq['fpkm'][rnaseq.index[range(start, stop)]]
+        X[i]=rnaseq['rsem_fpkm'][rnaseq.index[range(start, stop)]]
 
     #creating a pandas data frame with the correct row and column names
     X_pd=pd.DataFrame(X, columns=gene_symbols, index=models)
 
+    '''
     #Converting fpkm values into Z scores
     X_pd = X_pd + 1e-6
     X_pd=np.log2(X_pd)
     X_pd=X_pd.apply(lambda x: stats.zscore(x), axis=0)
     X_pd = X_pd.fillna(0)
-
+    '''
 
     return X_pd
 
@@ -199,7 +208,7 @@ def final_y(y, binary):
     return y
 
 
-def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, dM, genes=None):
+def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, dM, metadata=False, genes=None):
     """Formats and cleans the data to be used in machine learning models
 
     Parameters
@@ -232,7 +241,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     if(visuals):
         doinospace=doi.replace(" ", "")
         dataset=drugdata['DATASET'].iloc[0]
-        new_name=dataset+"_"+doinospace+"_"+did.astype(str)
+        new_name=dataset+"_"+doinospace+"_"+did
 
         visfile=os.path.join(outpath, f"{new_name}.pdf")
         pdf = matplotlib.backends.backend_pdf.PdfPages(visfile)
@@ -257,7 +266,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         d_mode(drugdata, pdf)
 
     #remove rows from y not present in x and rows from x not present in y
-    y=y[y['SANGER_MODEL_ID'].isin(rnaseq['model_id'])]
+    y=y[y['SANGER_MODEL_ID'].isin(X_pd.index)]
     X_pd=X_pd[X_pd.index.isin(y['SANGER_MODEL_ID'])]
 
     #final dropping of columns and sorting of y based on the type of model
@@ -280,17 +289,6 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         X_pd=X_pd[genes['0']]
 
 
-
-    #Normalize IC50 Values, if not binary
-    if (not binary):
-        #use a standard scaler
-        y_scaler = StandardScaler()
-        y_scaler.fit(y)
-        y=y_scaler.transform(y)
-        y=pd.DataFrame(y, columns=['LN_IC50'], index=X_pd.index)
-    else:
-        y_scaler=None
-    
     #visualize the distribution of cancer types
     if (visuals):
         xlabsct = ["" for x in range(len(cancertypes.value_counts('cancer_type')))]
@@ -311,10 +309,88 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         pdf.savefig(bbox_inches='tight')
         plt.close()
 
-    #split the data so cancer types are representative of overall distribution
-    #split into training and test data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_pd, y, test_size=0.2, random_state=42)
+
+
+    if (not binary):
+        #split the data so representative of overall distribution
+        y=y.squeeze()
+        y_binned = pd.qcut(y, q=10, labels=False)  # Quantile-based binning into 10 bins
+        #split into training and test data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_pd, y, test_size=0.2, random_state=42, stratify=y_binned)
+        y_test=y_test.to_frame()
+        y_train=y_train.to_frame()
+
+        #use a standard scaler
+        y_train_unscaled=y_train
+        y_scaler = StandardScaler()
+        # Reshape y_train to 2D before fitting
+        y_train_scaled = y_scaler.fit_transform(y_train).ravel()
+        # Ensure the transformed data retains the same structure
+        y_train = pd.DataFrame(y_train_scaled, columns=['LN_IC50'], index=y_train.index)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_pd, y, test_size=0.2, random_state=42, stratify=y)
+
+        y_scaler=None
+
+    #Converting fpkm values into Z scores
+    X_train = X_train + 1e-6
+    X_test = X_test + 1e-6
+    X_train=np.log2(X_train)
+    X_test=np.log2(X_test)
+    # Compute training set mean and std for normalization
+    X_train_mean = X_train.mean(axis=0)
+    X_train_std = X_train.std(axis=0)
+
+    # Normalize train and test sets
+    X_train = (X_train - X_train_mean) / X_train_std
+    X_test = (X_test - X_train_mean) / X_train_std
+
+    # Replace inf and NaN
+    X_train.replace([np.inf, -np.inf], np.nan, inplace=True)
+    X_test.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    X_train.fillna(0, inplace=True)
+    X_test.fillna(0, inplace=True)
+
+    #gather metadata if necessary
+    if (metadata):
+        # Define paths
+        metadata_file = os.path.join(outpath, 'metadata.csv')
+        lock_file = metadata_file + '.lock'
+
+        # Create a lock for the metadata file
+        lock = FileLock(lock_file)
+
+
+        with lock:
+            # Check if the metadata file exists; if not, initialize the dataframe
+            if os.path.exists(metadata_file):
+                metadf = pd.read_csv(metadata_file, header=0)
+            else:
+                columns = ['drug','total_cell_lines','total_genes','total_ic50_var',
+                            'train_cell_lines','train_ic50_var',
+                            'test_cell_lines','test_ic50_var']
+                metadf = pd.DataFrame(columns=columns)
+            #metadata values
+            tot_cell_lines=X_pd.shape[0]
+            tot_genes=X_pd.shape[1]
+            tot_var=pd.concat([y_train_unscaled, y_test], axis=0).var()
+            tot_var=tot_var.iloc[0]
+            train_cell_lines=X_train.shape[0]
+            train_var=y_train_unscaled.var()
+            train_var=train_var.iloc[0]
+            test_cell_lines=X_test.shape[0]
+            test_var=y_test.var()
+            test_var=test_var.iloc[0]
+            
+            s = pd.DataFrame({'drug': [new_drug_name], 'total_cell_lines': [tot_cell_lines],
+                            'total_genes': [tot_genes], 'total_ic50_var': [tot_var], 
+                            'train_cell_lines': [train_cell_lines], 'train_ic50_var': [train_var],
+                            'test_cell_lines': [test_cell_lines], 'test_ic50_var': [test_var]})
+            metadf=pd.concat([metadf, s], ignore_index=True)
+            metadf.to_csv(outpath+'metadata.csv', index=False)
 
     #distribution of test and train cancer types
     if(dM):
