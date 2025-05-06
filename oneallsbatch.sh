@@ -2,9 +2,11 @@
 INPUT_PATH=$1
 OUTPUT_PATH=$2
 GDSC_VER=$3
+EMAIL=$4
+CONDA_PATH=$5
 
 # Load your environment (e.g., modules, virtual environments)
-source /home/fateema.bazzi/miniconda3/etc/profile.d/conda.sh
+source "${CONDA_PATH}/etc/profile.d/conda.sh"
 conda activate sklearn-env
 
 #script to get each drug
@@ -13,4 +15,4 @@ DRUG_FILE="${OUTPUT_PATH}drugs_list.txt"
 #number of drugs
 NUM_ROWS=$(wc -l < "$DRUG_FILE")
 #sbatch call
-sbatch  --array=1-"$NUM_ROWS"%50 ./oneall_task.sh "$DRUG_FILE" "$INPUT_PATH" "$OUTPUT_PATH" "$GDSC_VER"
+sbatch  --array=1-"$NUM_ROWS"%50 ./oneall_task.sh "$DRUG_FILE" "$INPUT_PATH" "$OUTPUT_PATH" "$GDSC_VER" "$EMAIL" "$CONDA_PATH"
