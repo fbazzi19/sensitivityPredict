@@ -7,6 +7,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d","--drugdata", required=True, help="path/to/drugdata.xlsx", type=str)
     parser.add_argument("-oP", "--outputPath", help="Location to store drug list", type=str, required=True)
+    parser.add_argument("-dV", "--drugVersion", help="Which GDSC version", type=int, default=2)
     args = parser.parse_args()
 
     #find each unique drug name and id pair
@@ -14,7 +15,7 @@ if __name__=="__main__":
     drugdata_subset = drugdata[['DRUG_NAME', 'DRUG_ID']].drop_duplicates()
     #drugdata_subset['DRUG_NAME']=drugdata_subset['DRUG_NAME'].str.replace(" ", "")
     #output file name
-    task_file = args.outputPath+"drugs_list.txt"
+    task_file = args.outputPath+"drugs_list_"+str(args.drugVersion)+".txt" #fix later
 
     # Ensure the outpath directory exists
     os.makedirs(args.outputPath, exist_ok=True)
