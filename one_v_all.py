@@ -45,7 +45,8 @@ def parseArguments():
     parser.add_argument("-g","--genes", help="path/to/genes.csv", type=str, required=True)
     parser.add_argument("-oP","--outputPath", help="Location to store any output", type=str, required=True)
     parser.add_argument("-rF","--rnaFile", help="path/to/rnaseqfile.csv", type=str, required=True)
-    parser.add_argument("-dF","--drugFile", help="path/to/drugfile.xlsx", type=str, required=True)
+    parser.add_argument("-gONE","--gdscOne", help="path/to/GDSC1drugfile.xlsx", type=str, required=True)
+    parser.add_argument("-gTWO","--gdscTwo", help="path/to/GDSC2drugfile.xlsx", type=str, required=True)
     parser.add_argument("-mlF", "--modelListFile", help="path/to/modelListfile.csv", type=str, required=True)
 
     # Print version
@@ -61,7 +62,9 @@ def parseArguments():
         sys.exit("The model should be a pkl file")
     #if args.rnaFile.split(".")[-1] != "csv":
     #    sys.exit("The gene expression data should be a csv file")
-    if args.drugFile.split(".")[-1] != "xlsx":
+    if args.gdscOne.split(".")[-1] != "xlsx":
+        sys.exit("The drug sensitivity data should be a xlsx file")
+    if args.gdscTwo.split(".")[-1] != "xlsx":
         sys.exit("The drug sensitivity data should be a xlsx file")
     #if args.modelListFile.split(".")[-1] != "csv":
     #    sys.exit("The cell line data should be a csv file")
@@ -83,7 +86,8 @@ if __name__=="__main__":
     #load in basal transcription data
     rnaseq = pd.read_csv(args.rnaFile)
     #load in IC50 data
-    drugdata=pd.read_excel(args.drugFile)
+    drugdata_one=pd.read_excel(args.gdscOne)
+    drugdata_two=pd.read_excel(args.gdscTwo)
     #load in cancer type data
     cancertypes=pd.read_csv(args.modelListFile)
     cancertypes=cancertypes[['model_id', 'cancer_type']]
@@ -106,36 +110,37 @@ if __name__=="__main__":
     drug_names=[]
 
     
-    drugs=drugdata['DRUG_NAME'].unique()
-    for doi in drugs:
-        #retrieve all unique drug_ids associated with specified drug name
-        drugdata_subset=drugdata[drugdata['DRUG_NAME']==doi]
-        drug_ids=drugdata_subset['DRUG_ID'].unique()
-        for did in drug_ids:
-            X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, 
-                                                                            cancertypes, doi, 
-                                                                            did, binary=0, visuals=0,
-                                                                            outpath=outpath, 
-                                                                            dM=0, metadata=False, 
-                                                                            genes=genes)
+    for drugdata in [drugdata_one, drugdata_two]:
+        drugs=drugdata['DRUG_NAME'].unique()
+        for doi in drugs:
+            #retrieve all unique drug_ids associated with specified drug name
+            drugdata_subset=drugdata[drugdata['DRUG_NAME']==doi]
+            drug_ids=drugdata_subset['DRUG_ID'].unique()
+            for did in drug_ids:
+                X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, 
+                                                                                cancertypes, doi, 
+                                                                                did, binary=0, visuals=0,
+                                                                                outpath=outpath, 
+                                                                                dM=0, metadata=False, 
+                                                                                genes=genes)
 
-            #predict y values
-            y_pred=model.predict(X_test)
+                #predict y values
+                y_pred=model.predict(X_test)
 
-            #un-normalize the values
-            y_pred_reshaped = y_pred.reshape(-1, 1)
-            y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
-            y_pred_unnorm = y_pred_unnorm.flatten()
-            #r2 score
-            r2 = r2_score(y_test.values.ravel(), y_pred_unnorm)
-            #rmse
-            rmse_un=root_mean_squared_error(y_test.values.ravel(), y_pred_unnorm)
+                #un-normalize the values
+                y_pred_reshaped = y_pred.reshape(-1, 1)
+                y_pred_unnorm = y_scaler.inverse_transform(y_pred_reshaped)
+                y_pred_unnorm = y_pred_unnorm.flatten()
+                #r2 score
+                r2 = r2_score(y_test.values.ravel(), y_pred_unnorm)
+                #rmse
+                rmse_un=root_mean_squared_error(y_test.values.ravel(), y_pred_unnorm)
 
-            #calculate pearson correlation
-            correlation = np.corrcoef(y_test.values.ravel(), y_pred_unnorm)[0, 1]
-
-            metrics.append([r2, rmse_un, correlation])
-            drug_names.append(new_doi)
+                #calculate pearson correlation
+                correlation = np.corrcoef(y_test.values.ravel(), y_pred_unnorm)[0, 1]
+                print(new_doi)
+                metrics.append([r2, rmse_un, correlation])
+                drug_names.append(new_doi)
 
     
 
