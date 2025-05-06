@@ -109,7 +109,7 @@ def pr_curve_plot(recall, precision, pdf):
 def class_txt_pg(avg_aucpr, std_aucpr, auc_str, acc_str, y_test, y_pred, pdf, model):
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
-    # Add the text to the figure: accuracy
+    # Add the text to the figure
     txt= [model+": ",
         avg_aucpr, std_aucpr,
         auc_str, acc_str,
@@ -119,16 +119,19 @@ def class_txt_pg(avg_aucpr, std_aucpr, auc_str, acc_str, y_test, y_pred, pdf, mo
     pdf.savefig(fig)
     return 0
 
-def reg_txt_pg(avg_rmse, std_rmse, avg_pcorr, std_pcorr, r2_str, rmse_str, pcorr_str, pdf, model):
+def reg_txt_pg(avg_mse, std_mse, avg_rmse, std_rmse, avg_pcorr, std_pcorr, r2_str, mse_str, rmse_str, pcorr_str, pdf, model):
     fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
     ax.axis('off')  # Turn off axes for text-only page
     # Add the text to the figure: accuracy
-    txt= [model, 
+    txt= [model,
+            avg_mse,
+            std_mse, 
             avg_rmse,
             std_rmse,
             avg_pcorr,
             std_pcorr,
             r2_str,
+            mse_str,
             rmse_str,
             pcorr_str]
     txt = "\n".join(txt)
