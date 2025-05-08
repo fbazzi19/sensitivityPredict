@@ -102,14 +102,6 @@ def xPreproc(rnaseq):
     #creating a pandas data frame with the correct row and column names
     X_pd=pd.DataFrame(X, columns=gene_symbols, index=models)
 
-    '''
-    #Converting fpkm values into Z scores
-    X_pd = X_pd + 1e-6
-    X_pd=np.log2(X_pd)
-    X_pd=X_pd.apply(lambda x: stats.zscore(x), axis=0)
-    X_pd = X_pd.fillna(0)
-    '''
-
     return X_pd
 
 def yPreproc(drugdata, doi, did, visuals, pdf=None):
@@ -132,12 +124,19 @@ def yPreproc(drugdata, doi, did, visuals, pdf=None):
         IC50s binary sensitivity for cell lines with the drug of interest
     
     """
+    #drop unnecessary columns
+    drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50', 'DATASET', 'DRUG_ID']]
+    #sort data by drug and cell line
+    drugdata=drugdata.sort_values(by=['DRUG_NAME', 'SANGER_MODEL_ID'])
+
     #subset of drugdata that only looks at the doi
     y=drugdata[drugdata['DRUG_NAME']==doi]
     #further subset that only looks at the did
     y=y[y['DRUG_ID']==int(did)]
     #get the drug name with no spaces
-    doinospace=doi.replace(" ", "")
+    doinospace=doi.replace(" ", "-")
+    doinospace=doinospace.replace(",","-")
+    doinospace=doinospace.replace("/","-")
     #adjust drug name to include dataset and id
     y['DRUG_NAME'] = y['DATASET']+ "_"+ doinospace+ "_"+y['DRUG_ID'].astype(str)
     new_drug_name=y['DRUG_NAME'].iloc[0]
@@ -239,7 +238,9 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     """    
     #if the user requested visuals, open the pdf
     if(visuals):
-        doinospace=doi.replace(" ", "")
+        doinospace=doi.replace(" ", "-")
+        doinospace=doinospace.replace(",","-")
+        doinospace=doinospace.replace("/","-")
         dataset=drugdata['DATASET'].iloc[0]
         new_name=dataset+"_"+doinospace+"_"+did
 
@@ -252,12 +253,6 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     X_pd=xPreproc(rnaseq)
 
     #y preprocessing
-    #drop unnecessary columns
-    drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50', 'DATASET', 'DRUG_ID']]
-
-    #sort data by drug and cell line
-    drugdata=drugdata.sort_values(by=['DRUG_NAME', 'SANGER_MODEL_ID'])
-
     #compute threshold for sensitivity using LOBICO method
     y, new_drug_name=yPreproc(drugdata, doi, did, visuals, pdf)
 
@@ -277,17 +272,18 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     
     #if genes given as input, don't do filtering by variance and just include those genes
     #if genes not given, do filtering and autosave
+
     if genes is None:
         gene_vars = X_pd.var(axis=0)
         threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
         X_pd = X_pd.loc[:, gene_vars > threshold]
+        #save list of genes
         genes=list(X_pd)
         genes=pd.DataFrame(genes)
         os.makedirs(outpath+"/model_genes/", exist_ok=True)
         genes.to_csv(outpath+"/model_genes/"+new_drug_name+'_model_genes.csv')
     else:
         X_pd=X_pd[genes['0']]
-
 
     #visualize the distribution of cancer types
     if (visuals):
@@ -342,17 +338,27 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     # Compute training set mean and std for normalization
     X_train_mean = X_train.mean(axis=0)
     X_train_std = X_train.std(axis=0)
-
     # Normalize train and test sets
     X_train = (X_train - X_train_mean) / X_train_std
     X_test = (X_test - X_train_mean) / X_train_std
-
     # Replace inf and NaN
     X_train.replace([np.inf, -np.inf], np.nan, inplace=True)
     X_test.replace([np.inf, -np.inf], np.nan, inplace=True)
-
     X_train.fillna(0, inplace=True)
     X_test.fillna(0, inplace=True)
+    
+    '''
+    if genes is None:
+        # Compute correlation for each gene
+        correlations = np.corrcoef(X_train.T, y_train.values.flatten(), rowvar=True)[-1, :-1]
+        # Convert to a Pandas Series for easier handling
+        correlation_series = pd.Series(correlations, index=X_train.columns)
+        # Rank genes by absolute correlation and select the top 1,000
+        selected_genes = correlation_series.abs().nlargest(500).index.tolist()
+
+        X_train = X_train[selected_genes]
+        X_test = X_test[selected_genes]
+    '''  
 
     #gather metadata if necessary
     if (metadata):
@@ -362,7 +368,6 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
 
         # Create a lock for the metadata file
         lock = FileLock(lock_file)
-
 
         with lock:
             # Check if the metadata file exists; if not, initialize the dataframe
@@ -375,7 +380,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
                 metadf = pd.DataFrame(columns=columns)
             #metadata values
             tot_cell_lines=X_pd.shape[0]
-            tot_genes=X_pd.shape[1]
+            tot_genes=X_train.shape[1]
             tot_var=pd.concat([y_train_unscaled, y_test], axis=0).var()
             tot_var=tot_var.iloc[0]
             train_cell_lines=X_train.shape[0]
@@ -423,6 +428,23 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         ic50_distb_hist(y_train, pdf, test=False)
         
         ic50_distb_hist(y_test, pdf, test=True)
+
+    if(visuals and binary):
+        #note random accuracy
+        num_sens=np.sum(y_test.values.ravel() == 1)
+        sens_str="Sensitive cell lines in test set: "+str(num_sens)
+        num_res=np.sum(y_test.values.ravel() == 0)
+        res_str="Resistant cell lines in test set: "+str(num_res)
+        total_count = y_test.values.ravel().size
+        rand_acc=((num_sens/total_count)**2)+((num_res/total_count)**2)
+        rand_acc_str="Random Accuracy: "+str(rand_acc)
+        fig, ax = plt.subplots(figsize=(8.5, 11))  # Standard letter size
+        ax.axis('off')  # Turn off axes for text-only page
+        # Add the text to the figure
+        txt= [sens_str, res_str, rand_acc_str]
+        txt = "\n".join(txt)
+        ax.text(0.1, 0.9, txt, va='top', ha='left', fontsize=12, wrap=True, transform=ax.transAxes)
+        pdf.savefig(fig)
 
     #close the pdf of visuals if it was produced
     if(visuals):
