@@ -9,11 +9,10 @@
 
 # Read input arguments
 DRUG_FILE=$1
-INPUT_PATH=$2
-OUTPUT_PATH=$3
-GDSC_VER=$4
-EMAIL=$5
-CONDA_PATH=$6
+OUTPUT_PATH=$2
+GDSC_VER=$3
+EMAIL=$4
+CONDA_PATH=$5
 
 # Dynamically update --mail-user
 #SBATCH --mail-user="$EMAIL"
@@ -36,4 +35,4 @@ DRUG_ID=$(echo "$PARSED_LINE" | sed -n '2p')
 DRUG_NAME=$(echo "$DRUG_NAME" | sed 's/[ ,/]/-/g')
 
 # Run the Python script
-python3 ./one_v_all.py -m "${OUTPUT_PATH}models/GDSC${GDSC_VER}_${DRUG_NAME}_${DRUG_ID}_elastnet_model.pkl" -g "${OUTPUT_PATH}model_genes/GDSC${GDSC_VER}_${DRUG_NAME}_${DRUG_ID}_model_genes.csv" -rF "${INPUT_PATH}rnaseq_latest.csv.gz" -gONE "${INPUT_PATH}GDSC1_fitted_dose_response_27Oct23.xlsx" -gTWO "${INPUT_PATH}GDSC2_fitted_dose_response_27Oct23.xlsx" -mlF "${INPUT_PATH}model_list_latest.csv.gz" -oP "$OUTPUT_PATH"
+python3 ./one_v_all.py -m "${OUTPUT_PATH}models/GDSC${GDSC_VER}_${DRUG_NAME}_${DRUG_ID}_elastnet_model.pkl" -g "${OUTPUT_PATH}model_genes/GDSC${GDSC_VER}_${DRUG_NAME}_${DRUG_ID}_model_genes.csv" -oP "$OUTPUT_PATH"

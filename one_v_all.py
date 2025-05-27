@@ -1,8 +1,5 @@
 #library imports
 import os
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
 import pandas as pd
 import numpy as np
 import sklearn
@@ -10,28 +7,13 @@ import scipy
 import nbformat
 import itertools
 import math
-import seaborn as sb
-import matplotlib.pyplot as plt
-import matplotlib.backends.backend_pdf
 import sys
 import argparse
 import joblib
-import multiprocessing
 
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
-from sklearn.linear_model import LogisticRegression, LinearRegression, ElasticNet, Ridge
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.neighbors import KNeighborsClassifier, KernelDensity
-from sklearn.manifold import TSNE
-from scipy.integrate import simpson
-from scipy.stats import norm
-from sklearn.svm import SVC
-from sklearn.preprocessing import PolynomialFeatures, StandardScaler, MaxAbsScaler
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import r2_score, classification_report, precision_recall_curve, auc, f1_score, root_mean_squared_error
-from multiprocessing import Pool, cpu_count
-from threadpoolctl import threadpool_limits
+from sklearn.linear_model import LinearRegression, ElasticNet
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score, root_mean_squared_error
 
 from helperScripts.data_preproc import preproc
 from helperScripts.dataLoadIn import dataLoad
@@ -44,10 +26,6 @@ def parseArguments():
     parser.add_argument("-m","--model", help="path/to/model.pkl", type=str, required=True)
     parser.add_argument("-g","--genes", help="path/to/genes.csv", type=str, required=True)
     parser.add_argument("-oP","--outputPath", help="Location to store any output", type=str, required=True)
-    parser.add_argument("-rF","--rnaFile", help="path/to/rnaseqfile.csv", type=str, required=True)
-    parser.add_argument("-gONE","--gdscOne", help="path/to/GDSC1drugfile.xlsx", type=str, required=True)
-    parser.add_argument("-gTWO","--gdscTwo", help="path/to/GDSC2drugfile.xlsx", type=str, required=True)
-    parser.add_argument("-mlF", "--modelListFile", help="path/to/modelListfile.csv", type=str, required=True)
 
     # Print version
     parser.add_argument("--version", action="version", version='%(prog)s - Version 1.0')
@@ -60,14 +38,9 @@ def parseArguments():
         sys.exit("The list of genes should be a csv file")
     if args.model.split(".")[-1] != "pkl":
         sys.exit("The model should be a pkl file")
-    #if args.rnaFile.split(".")[-1] != "csv":
-    #    sys.exit("The gene expression data should be a csv file")
-    if args.gdscOne.split(".")[-1] != "xlsx":
-        sys.exit("The drug sensitivity data should be a xlsx file")
-    if args.gdscTwo.split(".")[-1] != "xlsx":
-        sys.exit("The drug sensitivity data should be a xlsx file")
-    #if args.modelListFile.split(".")[-1] != "csv":
-    #    sys.exit("The cell line data should be a csv file")
+    if(args.gdscVer!=1 and args.gdscVer!=2):
+        sys.exit("Invalid GDSC version. Specify 1 or 2.")
+
     #ensure output path is a path
     if(args.outputPath[-1]!="/"):
         sys.exit("The output path is invalid (should end in '/').")
@@ -83,14 +56,12 @@ if __name__=="__main__":
     model = joblib.load(args.model)
     #load in model feature names
     genes = pd.read_csv(args.genes)
+
     #load in basal transcription data
-    rnaseq = pd.read_csv(args.rnaFile)
+    rnaseq = rnaseq = dataLoad("https://cog.sanger.ac.uk/cmp/download/rnaseq_latest.csv.gz", "rna")
     #load in IC50 data
-    drugdata_one=pd.read_excel(args.gdscOne)
-    drugdata_two=pd.read_excel(args.gdscTwo)
-    #load in cancer type data
-    cancertypes=pd.read_csv(args.modelListFile)
-    cancertypes=cancertypes[['model_id', 'cancer_type']]
+    drugdata_one=dataLoad("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC1_fitted_dose_response_27Oct23.xlsx", "drug")
+    drugdata_two=dataLoad("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC2_fitted_dose_response_27Oct23.xlsx", "drug")
 
     #name of drug model is for
     model_drug_name=args.model[0:[pos for pos, char in enumerate(args.model) if char == "_"][-2]]
@@ -108,7 +79,6 @@ if __name__=="__main__":
     #note r2, rmse, and pcorr for each drug
     metrics=[]
     drug_names=[]
-
     
     for drugdata in [drugdata_one, drugdata_two]:
         drugs=drugdata['DRUG_NAME'].unique()
@@ -118,9 +88,8 @@ if __name__=="__main__":
             drug_ids=drugdata_subset['DRUG_ID'].unique()
             for did in drug_ids:
                 X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, 
-                                                                                cancertypes, doi, 
-                                                                                did, binary=0, visuals=0,
-                                                                                outpath=outpath, 
+                                                                                doi, did, binary=0, 
+                                                                                visuals=0, outpath=outpath, 
                                                                                 dM=0, metadata=False, 
                                                                                 genes=genes)
 
@@ -138,15 +107,11 @@ if __name__=="__main__":
 
                 #calculate pearson correlation
                 correlation = np.corrcoef(y_test.values.ravel(), y_pred_unnorm)[0, 1]
-                print(new_doi)
                 metrics.append([r2, rmse_un, correlation])
                 drug_names.append(new_doi)
 
-    
-
-
     metrics_df=pd.DataFrame(metrics, index=drug_names, columns=['R2', 'RMSE', 'Pearson Correlation'])
-    #send metrics to csv to try making figures with R
+    #send metrics to csv to make visuals with R
     metrics_df.to_csv(outpath+''+model_drug_name+'_oneall_metrics.csv')
     
-    print("Hooray! :)")
+    print("Process completed for drug model "+ model_drug_name)

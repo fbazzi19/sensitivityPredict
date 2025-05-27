@@ -9,13 +9,12 @@
 
 # Read input arguments
 DRUG_FILE=$1
-INPUT_PATH=$2
-OUTPUT_PATH=$3
-GDSC_VER=$4
-METADATA=$5
-BINARY=$6
-EMAIL=$7
-CONDA_PATH=$8
+OUTPUT_PATH=$2
+GDSC_VER=$3
+METADATA=$4
+BINARY=$5
+EMAIL=$6
+CONDA_PATH=$7
 
 # Dynamically update --mail-user
 #SBATCH --mail-user="$EMAIL"
@@ -35,4 +34,4 @@ DRUG_NAME=$(echo "$PARSED_LINE" | sed -n '1p')
 DRUG_ID=$(echo "$PARSED_LINE" | sed -n '2p')
 
 # Run the Python script
-python3 ./workflow.py -rF "${INPUT_PATH}rnaseq_latest.csv.gz" -dF "${INPUT_PATH}GDSC${GDSC_VER}_fitted_dose_response_27Oct23.xlsx" -mlF "${INPUT_PATH}model_list_latest.csv.gz" -dOI "$DRUG_NAME" -dID "$DRUG_ID" -oP "$OUTPUT_PATH" -m "$METADATA" -b "$BINARY"
+python3 ./workflow.py -gV "${GDSC_VER}" -dOI "$DRUG_NAME" -dID "$DRUG_ID" -oP "$OUTPUT_PATH" -m "$METADATA" -b "$BINARY"

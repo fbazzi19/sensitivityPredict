@@ -40,9 +40,7 @@ def parseArguments():
     parser.add_argument("-dOI", "--drugOfInterest", help="Drug of Interest", type=str, required=True)
     parser.add_argument("-dID", "--drugID", help="ID of Drug", type=str, required=True)
     parser.add_argument("-oP", "--outputPath", help="Location to store any output", type=str, required=True)
-    parser.add_argument("-rF","--rnaFile", help="path/to/rnaseqfile.csv.gz", type=str, required=True)
-    parser.add_argument("-dF","--drugFile", help="path/to/drugfile.xlsx", type=str, required=True)
-    parser.add_argument("-mlF", "--modelListFile", help="path/to/modelListfile.csv.gz", type=str, required=True)
+    parser.add_argument("-gV","--gdscVer", help="GDSC Version", type=int, default=2)
     parser.add_argument("-b", "--binary", help="Option to have a binary y", type=int, default=0)
     parser.add_argument("-v", "--visuals", help="Option to produce visuals", type=int, default=0)
     parser.add_argument("-m", "--metadata", help="Option to write model metadata to file", type=int, default=0)
@@ -73,13 +71,8 @@ def parseArguments():
         sys.exit("Invalid metadata parameter. Specify 0 (false) or 1 (true).")
     if(args.developerMode!=0 and args.developerMode!=1):
         sys.exit("Invalid developer mode parameter. Specify 0 (false) or 1 (true).")
-    #check to make sure the files are of the correct format
-    #if args.rnaFile.split(".")[-1] != "csv":
-    #    sys.exit("The gene expression data should be a csv file")
-    if args.drugFile.split(".")[-1] != "xlsx":
-        sys.exit("The drug sensitivity data should be a xlsx file")
-    #if args.modelListFile.split(".")[-1] != "csv":
-    #    sys.exit("The cell line data should be a csv file")
+    if(args.gdscVer!=1 and args.gdscVer!=2):
+        sys.exit("Invalid GDSC version. Specify 1 or 2.")
 
     return args
 
@@ -91,12 +84,12 @@ if __name__=="__main__":
     args = parseArguments()
 
     #load in basal transcription data
-    rnaseq = pd.read_csv(args.rnaFile)
+    rnaseq = dataLoad("https://cog.sanger.ac.uk/cmp/download/rnaseq_latest.csv.gz", "rna")
     #load in IC50 data
-    drugdata=pd.read_excel(args.drugFile)
-    #load in cancer type data
-    cancertypes=pd.read_csv(args.modelListFile)
-    cancertypes=cancertypes[['model_id', 'cancer_type']]
+    if(args.gdscVer==2):
+        drugdata=dataLoad("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC2_fitted_dose_response_27Oct23.xlsx", "drug")
+    else:
+        drugdata=dataLoad("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC1_fitted_dose_response_27Oct23.xlsx", "drug")
 
     #set random seed for reproducibility
     np.random.seed(42)
@@ -105,13 +98,15 @@ if __name__=="__main__":
     os.makedirs(args.outputPath, exist_ok=True)
 
     #preprocess data
-    X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, cancertypes, 
+    X_train, X_test, y_train, y_test, y_scaler, new_doi = preproc(rnaseq, drugdata, 
                                                             args.drugOfInterest, args.drugID, 
                                                             binary=args.binary, visuals=args.visuals, 
                                                             outpath=args.outputPath, dM=args.developerMode,
                                                             metadata=args.metadata, genes=None)
+    #retrieve cell lines that were in the training set
     if(args.visuals):
         y_train.to_csv(args.outputPath+new_doi+'_y_train_set.csv')
+    #produce models
     if(args.binary):
         print(classificationModels(X_train, X_test, y_train, y_test, new_doi, args.visuals, args.outputPath))
     else:
