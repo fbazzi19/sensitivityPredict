@@ -24,10 +24,17 @@ from helperScripts.lobico import lobico_calc
 from helperScripts.figures import ic50_violin_plot, ic50_bin_sens_plot, ic50_distb_hist
 
 
-
-
-def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
-    #calculate and display variance of the drugs if the user requests visuals
+def d_mode(drugdata, pdf=None):
+    """More time consuming visuals
+    
+    Parameters
+    ----------
+    drugdata : pandas dataframe
+        IC50 values for all drugs
+    pdf
+        pdf to print visuals to
+    """
+    #calculate and display variance of the drugs
     #first calculate the variance of the ic50 of each drug
     drugs=drugdata['DRUG_NAME'].unique()
     vars=np.zeros(len(drugs))
@@ -49,7 +56,7 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
     sensitivities = np.zeros(shape=(drugdata.shape[0],1))
     drugs=drugdata['DRUG_NAME'].unique()
     thresholds = np.zeros(shape=(len(drugs),1))
-
+    #calculate sensitivity labels for every drug
     for d in range(len(drugs)):
         y=drugdata[drugdata['DRUG_NAME']==drugs[d]]
         threshold, distb=lobico_calc(y)
@@ -57,14 +64,14 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
 
         #calculate binary sensitivity
         idxs=(drugdata['DRUG_NAME']==drugs[d])
-        #print(sensitivities[idxs].shape)
         sensitivities[idxs]=((y['LN_IC50']<threshold)*1).values.reshape(-1, 1) #*1 converts bool into 0/1
 
     drugdatacopy=drugdata
     drugdatacopy.insert(2, 'SENSITIVITY', sensitivities, True) 
+    #visualize all the thresholds
     ic50_violin_plot(drugdatacopy, thresholds, len(thresholds), pdf)
 
-    # Use only the first 20 rows of the data
+    # Use only the first 20 rows of the data to visualize thresholds
     subset_data = drugdatacopy[drugdatacopy['DRUG_NAME'].isin(drugdatacopy['DRUG_NAME'].unique()[:20])]
     subset_thresholds = thresholds[0:20]
     ic50_violin_plot(subset_data, thresholds, len(subset_thresholds), pdf)
@@ -72,9 +79,21 @@ def d_mode(drugdata, pdf=None, z=1.96, t=0.05):
     return 0
 
 def xPreproc(rnaseq):
+    """Initial cleaning and formatting of gene expression data
+    
+    Parameters
+    ----------
+    rnaseq : pandas dataframe
+        gene expression values for the cell lines
+    
+    Output
+    ------
+    X_pd : pandas dataframe
+        Gene expression data cleaned and formatted
+    """
     #drop columns not needed
     rnaseq=rnaseq.drop_duplicates(subset=['model_id', 'gene_symbol'])
-    rnaseq=rnaseq[['model_id', 'gene_symbol', 'rsem_fpkm']]#rsem_tm
+    rnaseq=rnaseq[['model_id', 'gene_symbol', 'rsem_fpkm']]
     
     #remove rows where there isn't an value
     rnaseq=rnaseq.dropna(subset=['rsem_fpkm'])
@@ -105,7 +124,7 @@ def xPreproc(rnaseq):
     return X_pd
 
 def yPreproc(drugdata, doi, did, visuals, pdf=None):
-    """Adds Sensitivity and properly formats y data
+    """Adds binary sensitivity labels and properly formats y data
 
     Parameters
     ----------
@@ -113,6 +132,8 @@ def yPreproc(drugdata, doi, did, visuals, pdf=None):
         IC50 values for each drug
     doi : str
         drug of interest
+    did : str
+        drug ID associated with drug of interest
     visuals : int
         whether we want to produce visuals
     pdf
@@ -122,7 +143,8 @@ def yPreproc(drugdata, doi, did, visuals, pdf=None):
     ------
     y : pandas dataframe
         IC50s binary sensitivity for cell lines with the drug of interest
-    
+    new_drug_name : str
+        The drug name with updated formatting to include dataset version and id
     """
     #drop unnecessary columns
     drugdata=drugdata[['DRUG_NAME', 'SANGER_MODEL_ID', 'RMSE', 'MIN_CONC', 'MAX_CONC', 'LN_IC50', 'DATASET', 'DRUG_ID']]
@@ -133,7 +155,7 @@ def yPreproc(drugdata, doi, did, visuals, pdf=None):
     y=drugdata[drugdata['DRUG_NAME']==doi]
     #further subset that only looks at the did
     y=y[y['DRUG_ID']==int(did)]
-    #get the drug name with no spaces
+    #get the drug name with no spaces, commas, or slashes
     doinospace=doi.replace(" ", "-")
     doinospace=doinospace.replace(",","-")
     doinospace=doinospace.replace("/","-")
@@ -194,12 +216,14 @@ def final_y(y, binary):
     y : pandas dataframe
         the cleaned up y
     """
+    #drop unnecessary columns
     y=y.drop(columns=['DRUG_NAME', 'RMSE', 'MIN_CONC', 'MAX_CONC'])
+    #conditionally drop either continuous or discrete values
     if (binary):
         y=y.drop(columns='LN_IC50')
     else:
         y=y.drop(columns='SENSITIVITY')
-    
+    #set row names to cell line IDs and sort
     y.index=y['SANGER_MODEL_ID']
     y=y.drop(columns='SANGER_MODEL_ID')
     y=y.sort_index()    
@@ -207,7 +231,7 @@ def final_y(y, binary):
     return y
 
 
-def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, dM, metadata=False, genes=None):
+def preproc(rnaseq, drugdata, doi, did, binary, visuals, outpath, dM, metadata=False, genes=None):
     """Formats and cleans the data to be used in machine learning models
 
     Parameters
@@ -216,25 +240,37 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
         transcriptional signatures
     drugdata : pandas dataframe
         IC50 values
-    cancertypes : pandas dataframe
-        cancer type data
     doi : str
         drug of interest
+    did : int
+        drug ID associated with drug of interest
     binary : int
         whether y should be binary
     visuals : int
         whether figures should be produced
-    outvis : str
+    outpath : str
         path to save visuals pdf to
     dM : int
         whether to call developer mode
+    metadata : bool
+        whether to write properties of the data to a file
+    genes
+        features of the data, if pre-determined
 
     Output
     ------
     Xtrain : pandas dataframe
+        formatted X training data
     Xtest : pandas dataframe
+        formatted X test data
     ytrain : pandas dataframe
+        formatted y training data
     ytest : pandas datarame
+        formatted y test data
+    y_scaler : StandardScaler
+        scaler used to normalize IC50 values
+    new_drug_name:
+        drug name in the new formatting
     """    
     #if the user requested visuals, open the pdf
     if(visuals):
@@ -267,15 +303,11 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     #final dropping of columns and sorting of y based on the type of model
     y=final_y(y, binary)
     
-    #intersect cancer types with model ids from y
-    cancertypes=cancertypes[cancertypes['model_id'].isin(y.index)]
-    
     #if genes given as input, don't do filtering by variance and just include those genes
     #if genes not given, do filtering and autosave
-
     if genes is None:
         gene_vars = X_pd.var(axis=0)
-        threshold = gene_vars.quantile(0.10) #Alternatively, absolute threshold of 0.1
+        threshold = gene_vars.quantile(0.10)
         X_pd = X_pd.loc[:, gene_vars > threshold]
         #save list of genes
         genes=list(X_pd)
@@ -285,28 +317,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     else:
         X_pd=X_pd[genes['0']]
 
-    #visualize the distribution of cancer types
-    if (visuals):
-        xlabsct = ["" for x in range(len(cancertypes.value_counts('cancer_type')))]
-        for i in range(len(cancertypes.value_counts('cancer_type'))):
-            if cancertypes.value_counts('cancer_type').iloc[i]>30:
-                #add cancer type string to list/array,
-                xlabsct[i]=cancertypes.value_counts('cancer_type').index[i]
-                #else leave an empty string
-
-        #produce the histogram
-        plt.figure(figsize=(20, 20))
-        sb.histplot(data=cancertypes, x='cancer_type')
-        plt.xticks(xlabsct, rotation=30, ha='right')
-        plt.xlabel('Cancer Types', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
-        plt.tick_params(axis='both', which='major', labelsize=16)
-        plt.title("Model Cancer Types", fontsize=25)
-        pdf.savefig(bbox_inches='tight')
-        plt.close()
-
-
-
+    #data splitting
     if (not binary):
         #split the data so representative of overall distribution
         y=y.squeeze()
@@ -345,20 +356,7 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
     X_train.replace([np.inf, -np.inf], np.nan, inplace=True)
     X_test.replace([np.inf, -np.inf], np.nan, inplace=True)
     X_train.fillna(0, inplace=True)
-    X_test.fillna(0, inplace=True)
-    
-    '''
-    if genes is None:
-        # Compute correlation for each gene
-        correlations = np.corrcoef(X_train.T, y_train.values.flatten(), rowvar=True)[-1, :-1]
-        # Convert to a Pandas Series for easier handling
-        correlation_series = pd.Series(correlations, index=X_train.columns)
-        # Rank genes by absolute correlation and select the top 1,000
-        selected_genes = correlation_series.abs().nlargest(500).index.tolist()
-
-        X_train = X_train[selected_genes]
-        X_test = X_test[selected_genes]
-    '''  
+    X_test.fillna(0, inplace=True) 
 
     #gather metadata if necessary
     if (metadata):
@@ -397,36 +395,10 @@ def preproc(rnaseq, drugdata, cancertypes, doi, did, binary, visuals, outpath, d
             metadf=pd.concat([metadf, s], ignore_index=True)
             metadf.to_csv(outpath+'metadata.csv', index=False)
 
-    #distribution of test and train cancer types
-    if(dM):
-        ct=cancertypes
-        ct.index=ct['model_id']
-        ct.drop(columns=['model_id'])
-        ct_tr=ct[ct.index.isin(X_train.index)]
-        ct_ts=ct[ct.index.isin(X_test.index)]
-        ct_tr=ct_tr.assign(dataset=['Train']*len(ct_tr))
-        ct_ts=ct_ts.assign(dataset=['Test']*len(ct_ts))
-        # Combine the datasets into a single DataFrame
-        combined_ct = pd.concat([ct_tr, ct_ts])
-
-        #produce the histogram
-        plt.figure(figsize=(20, 20))
-        sb.histplot(data=combined_ct, x='cancer_type', hue='dataset', multiple='dodge')
-        plt.xticks(xlabsct, rotation=30, ha='right')
-        plt.xlabel('Cancer Types', fontsize=20)
-        plt.ylabel('Count', fontsize=20)
-        plt.tick_params(axis='both', which='major', labelsize=16)
-        plt.title("Model Cancer Types", fontsize=25)
-        legend = plt.gca().get_legend()
-        legend.set_title("Data")
-        pdf.savefig( bbox_inches='tight')
-        plt.close()
-
     if(visuals and not binary):
         #display the range of ic50 values (normalized)
         #in the test and training sets
         ic50_distb_hist(y_train, pdf, test=False)
-        
         ic50_distb_hist(y_test, pdf, test=True)
 
     if(visuals and binary):

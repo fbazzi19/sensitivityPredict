@@ -21,9 +21,9 @@ def lobico_calc(y, z=1.96, t=0.15):
         Used to calculate the standard deviation during upsampling of the data, a value of
         1.96 is associated with a 95% confidence interval.
     t : float
-        Used to determine how strict the threshold should be. A value of 0.05 indicates that the
+        Used to determine how strict the threshold should be. A value of 0.15 indicates that the
         integral of the resistant cell lines distribution from negative infinity to the threshold
-        should be equal to 0.05.
+        should be equal to 0.15.
     
     Output
     ------

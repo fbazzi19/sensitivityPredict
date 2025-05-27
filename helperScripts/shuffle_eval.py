@@ -10,7 +10,26 @@ from sklearn.neighbors import KNeighborsClassifier, KernelDensity
 from sklearn.metrics import precision_recall_curve, auc, root_mean_squared_error, mean_squared_error
 
 def shuffle_eval(X, y, model, binary=0, y_scaler=None):
-    #TODO: if not binary, also calculate pearson corr
+    """Perform shuffle split evaluation on the data
+    
+    Parameters
+    ----------
+    X : pandas dataframe
+        gene expression training data
+    y : pandas dataframe
+        y training data
+    model :
+        the model to be evaluated
+    binary : int
+        whether the model is predicting discrete or continuous values
+    y_scaler :
+        scales the predicted y values back
+
+    Output
+    ------
+    metrics : list
+        metrics resulting from the evaluation
+    """
     # ShuffleSplit for 50 iterations
     if (binary):
         ss_eval = StratifiedShuffleSplit(n_splits=50, test_size=0.25, random_state=None)

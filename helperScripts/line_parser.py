@@ -2,6 +2,20 @@ import csv
 import sys
 
 def parse_line(line):
+    """Parse line based on the last comma
+    
+    Parameters
+    ----------
+    line : str
+        line from file
+    
+    Output
+    ------
+    line[0:last_comma] : str
+        the line up to the last comma
+    line[last_comma+1:len(line)] : str
+        the line after the last comma
+    """
     last_comma=line.rfind(",")
     return line[0:last_comma], line[last_comma+1:len(line)]
 
