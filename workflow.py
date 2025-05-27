@@ -108,8 +108,8 @@ if __name__=="__main__":
         y_train.to_csv(args.outputPath+new_doi+'_y_train_set.csv')
     #produce models
     if(args.binary):
-        print(classificationModels(X_train, X_test, y_train, y_test, new_doi, args.visuals, args.outputPath))
+        classificationModels(X_train, X_test, y_train, y_test, new_doi, args.visuals, args.outputPath)
     else:
-        print(regressionModels(X_train, X_test, y_train, y_test, y_scaler, new_doi, args.visuals, args.outputPath))
+        regressionModels(X_train, X_test, y_train, y_test, y_scaler, new_doi, args.visuals, args.outputPath)
  
-    print("Model Created Successfully")
+    print("Models for "+ new_doi+" Created Successfully")
