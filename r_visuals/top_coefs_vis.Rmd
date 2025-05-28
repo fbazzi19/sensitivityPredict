@@ -1,0 +1,146 @@
+---
+title: "Coefficients Visualization"
+author: "Fateema Bazzi"
+date: "2025-05-16"
+output: 
+  html_document:
+    fig_width: 10
+    fig_height: 8
+params: 
+  coefsdir: "./"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load in Libraries
+
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(gplots)
+library(readxl)
+library(tibble)
+library(rgl)
+options(rgl.useNULL = TRUE)
+library(gt)
+library(stats)
+library(fgsea)
+library(ggrepel)
+library(openxlsx)
+library(stats)
+```
+
+## Get Directory from User
+```{r, echo=FALSE}
+#directory holding the coefficients data
+coefsdir <- params$coefsdir
+print(coefsdir)
+```
+
+## Load in Data from URLs
+```{r, echo=FALSE}
+#drug metadata
+drug_info_1 <- read.xlsx("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC1_fitted_dose_response_27Oct23.xlsx")
+drug_info_1 <- drug_info_1[, c("DATASET","DRUG_ID","DRUG_NAME")]
+drug_info_2 <- read.xlsx("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC2_fitted_dose_response_27Oct23.xlsx")
+drug_info_2 <- drug_info_2[, c("DATASET","DRUG_ID","DRUG_NAME")]
+drug_info <-rbind(drug_info_1, drug_info_2)
+drug_info <- unique(drug_info)
+rm(drug_info_1)
+rm(drug_info_2)
+
+drug_interactions <-read_tsv("https://dgidb.org/data/latest/interactions.tsv")
+drug_interactions <- drug_interactions[,c("gene_name", "drug_name")]
+
+print(head(drug_info))
+print(head(drug_interactions))
+```
+
+## Data Formatting 
+```{r, echo=FALSE}
+#adjust the drug names to get rid of spaces commas and slashes
+drug_info$DRUG_NAME<-gsub(" ", "-", drug_info$DRUG_NAME)
+drug_info$DRUG_NAME<-gsub(",", "-", drug_info$DRUG_NAME)
+drug_info$DRUG_NAME<-gsub("/", "-", drug_info$DRUG_NAME)
+
+drug_interactions$drug_name <- gsub(" ", "-", drug_interactions$drug_name)
+drug_interactions$drug_name <- gsub(",", "-", drug_interactions$drug_name)
+drug_interactions$drug_name <- gsub("/", "-", drug_interactions$drug_name)
+```
+
+## GSEA Analysis 
+```{r, echo=FALSE}
+results <- list()
+#for each drug
+for (i in 1:dim(drug_info)[1]) {
+  #get corresponding list of coefs
+  file_name<- paste(coefsdir,drug_info$DATASET[i],"_",
+                    drug_info$DRUG_NAME[i],"_",drug_info$DRUG_ID[i],
+                    "_top_coefs.csv", sep = "")
+  coefs_df <- read.csv(file_name)
+  
+  ranked_genes <- setNames(coefs_df$Coefficients, coefs_df$X)
+  ranked_genes <- sort(ranked_genes, decreasing = TRUE)
+  #capitalize drug name to match drug interactions
+  drug_name <- toupper(drug_info$DRUG_NAME[i])
+ 
+  drug_genes <- drug_interactions[drug_interactions$drug_name==drug_name,]
+  drug_genes <- drug_genes <- intersect(drug_genes$gene_name,
+                                        names(ranked_genes))
+  pathways <- list(DrugPathway = drug_genes)
+  
+  if (length(drug_genes) == 0) {
+    next
+  }
+  
+  # Run fgseaMultilevel
+  fgsea_result <- fgsea(pathways = pathways,
+                        stats = ranked_genes,
+                        minSize = 1,
+                        maxSize = 500)
+
+  # Store the result with an identifier
+  results[[paste(drug_info$DATASET[i],"_",drug_info$DRUG_NAME[i],
+                 "_",drug_info$DRUG_ID[i], sep = "")]] <- fgsea_result
+}
+
+```
+
+### Format Results
+```{r, echo=FALSE}
+# Combine results into a single data frame for easy viewing
+results_df <- do.call(rbind, lapply(names(results), function(x) {
+  cbind(Drug = x, as.data.frame(results[[x]]))
+}))
+
+# add a column of NAs
+results_df$diffexpressed <- "NO"
+# if log2Foldchange > 0.6 and pvalue < 0.05, set as "UP" 
+results_df$diffexpressed[results_df$NES > 1 & results_df$padj < 0.05] <- "UP"
+# if log2Foldchange < -0.6 and pvalue < 0.05, set as "DOWN"
+results_df$diffexpressed[results_df$NES < -1 & results_df$padj < 0.05] <- "DOWN"
+
+results_df$delabel <- NA
+results_df$delabel[results_df$diffexpressed != "NO"] <- results_df$Drug[results_df$diffexpressed != "NO"]
+
+print(head(results_df))
+```
+
+## Plot
+```{r, echo=FALSE}
+#volcano plot
+ggplot(data=results_df, aes(x=NES, y=-log10(padj), col=diffexpressed, label=delabel)) + 
+  geom_point() + 
+  theme_minimal() +
+  geom_label_repel(size=6) +
+  scale_color_manual(values = c("blue", "black", "red")) +
+  geom_vline(xintercept=c(-1, 1), col="red") +
+  geom_hline(yintercept=-log10(0.05), col="red") +
+  theme(legend.position = "none",
+        axis.title = element_text(size = 20),
+        axis.text = element_text(size = 15))
+```

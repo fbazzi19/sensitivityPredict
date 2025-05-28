@@ -1,0 +1,244 @@
+---
+title: "Binary Model Visualizations"
+author: "Fateema Bazzi"
+date: "2025-05-04"
+output: 
+  html_document:
+    fig_width: 10
+    fig_height: 8
+params:
+  metricsdir: "./"
+  metadir: "./"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load in Libraries
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(gplots)
+library(readxl)
+library(ggrepel)
+library(stringr)
+library(ggstatsplot)
+library(tibble)
+library(rgl)
+options(rgl.useNULL = TRUE)
+library(gt)
+library(rstatix)
+library(ggpubr)
+```
+
+## Get directories from user
+```{r, echo=FALSE}
+metricsdir <- params$metricsdir
+metadir <- params$metadir
+print(metricsdir)
+print(metadir)
+```
+
+## Load in Data
+```{r, echo=FALSE}
+all_metrics <- read.csv(paste(metricsdir, "all_classification_metrics.csv", sep = ""))
+
+metadata <- read.csv(paste(metadir,"metadata.csv", sep = ""))
+row.names(metadata)<-metadata$drug
+
+print(head(all_metrics))
+print(head(metadata))
+```
+
+## Data Formatting
+```{r, echo=FALSE}
+#if rand auc is 0, exclude from downstream analyses
+all_metrics<-
+  all_metrics[all_metrics$Random.AUCPR!=0,]
+#take ratio of metric
+all_metrics$AUCPR_ratio <- all_metrics$AUCPR/all_metrics$Random.AUCPR
+all_metrics$Accuracy_ratio <-
+  all_metrics$Accuracy/all_metrics$Random.Accuracy
+
+#Separate into model types
+log_metrics<-all_metrics[all_metrics$Model=="logistic regression",]
+row.names(log_metrics)<- log_metrics$Drug
+
+lda_metrics<-all_metrics[all_metrics$Model=="lda",]
+row.names(lda_metrics)<- lda_metrics$Drug
+
+knn_metrics<-all_metrics[all_metrics$Model=="KNN",]
+row.names(knn_metrics)<- knn_metrics$Drug
+
+print(head(log_metrics))
+print(head(lda_metrics))
+print(head(knn_metrics))
+```
+
+## Plots
+### Compare the Model Types
+#### Accuracy
+```{r, echo=FALSE}
+#Acc
+ggbetweenstats(data = all_metrics, x = Model, y = Accuracy_ratio, 
+               ylab= "Accuracy Ratio",
+               bf.message = F, p.adjust.method = "none", 
+               pairwise.display = "none",
+               centrality.type = "nonparametric",
+               centrality.label.args = list(size  = 6))+
+  theme(axis.title = element_text(size=20),
+        axis.text = element_text(size=20))
+```
+
+#### AUC-PR
+```{r, echo=FALSE}
+#aucpr
+ggbetweenstats(data = all_metrics, x = Model, y = AUCPR_ratio, 
+               ylab = "AUC-PR Ratio",
+               bf.message = F, p.adjust.method = "none", 
+               pairwise.display = "none",
+               centrality.type = "nonparametric",
+               centrality.label.args = list(size  = 6))+
+  theme(axis.title = element_text(size=20),
+        axis.text = element_text(size=20))
+```
+
+```{r, echo=FALSE}
+#significance testing accuracy
+all_metrics$Model<- as.factor(all_metrics$Model)
+ft_acc <- all_metrics %>% friedman_test(Accuracy_ratio ~ Model |Drug)
+acc_pairwise<-all_metrics %>%
+              wilcox_test(Accuracy_ratio ~ Model, paired = TRUE, 
+                          p.adjust.method = "bonferroni")
+acc_tibble<- tibble(
+  ` `=c("LDA", "Logistic Regression"),
+  `KNN`=c(acc_pairwise$p.adj[1], acc_pairwise$p.adj[2]),
+  `LDA`=c("NA", acc_pairwise$p.adj[3])
+)
+gt(acc_tibble) |>
+  tab_header(
+    title = "Binary Models Accuracy Comparison",
+    subtitle = paste("Friedman Test p-value: ", ft_acc$p)
+  )
+```
+
+```{r, echo=FALSE}
+#significance testing aucpr
+ft_auc <- all_metrics %>% friedman_test(AUCPR_ratio ~ Model |Drug)
+auc_pairwise<-all_metrics %>%
+              wilcox_test(AUCPR_ratio ~ Model, paired = TRUE, 
+                          p.adjust.method = "bonferroni")
+
+auc_tibble<- tibble(
+  ` `=c("LDA", "Logistic Regression"),
+  `KNN`=c(auc_pairwise$p.adj[1], auc_pairwise$p.adj[2]),
+  `LDA`=c("NA", auc_pairwise$p.adj[3])
+)
+gt(auc_tibble) |>
+  tab_header(
+    title = "Binary Models AUC-PR Comparison",
+    subtitle = paste("Friedman Test p-value: ", ft_auc$p)
+  )
+```
+
+## Correlate metadata to metrics
+```{r, echo=FALSE}
+knn_metrics$total_cell_lines <- metadata$total_cell_lines[match(rownames(knn_metrics), rownames(metadata))]
+knn_metrics$total_genes <- metadata$total_genes[match(rownames(knn_metrics), rownames(metadata))]
+lda_metrics$total_cell_lines <- metadata$total_cell_lines[match(rownames(lda_metrics), rownames(metadata))]
+lda_metrics$total_genes <- metadata$total_genes[match(rownames(lda_metrics), rownames(metadata))]
+log_metrics$total_cell_lines <- metadata$total_cell_lines[match(rownames(log_metrics), rownames(metadata))]
+log_metrics$total_genes <- metadata$total_genes[match(rownames(log_metrics), rownames(metadata))]
+```
+
+Check is data is normally distributed
+```{r, echo=FALSE}
+shapiro.test(knn_metrics$AUCPR_ratio)
+shapiro.test(knn_metrics$Accuracy_ratio)
+shapiro.test(lda_metrics$AUCPR_ratio)
+shapiro.test(lda_metrics$Accuracy_ratio)
+shapiro.test(log_metrics$AUCPR_ratio)
+shapiro.test(log_metrics$Accuracy_ratio)
+```
+It's not, so correlation is tested with Spearman's rho
+
+### Correlations with Accuracy
+```{r, echo=FALSE}
+ggscatter(knn_metrics, x = "total_cell_lines", y = "Accuracy_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "Accuracy",
+          title = "KNN Models")
+
+ggscatter(knn_metrics, x = "total_genes", y = "Accuracy_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "Accuracy",
+          title = "KNN Models")
+
+ggscatter(lda_metrics, x = "total_cell_lines", y = "Accuracy_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "Accuracy",
+          title = "LDA Models")
+
+ggscatter(lda_metrics, x = "total_genes", y = "Accuracy_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "Accuracy",
+          title = "LDA Models")
+
+ggscatter(log_metrics, x = "total_cell_lines", y = "Accuracy_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "Accuracy",
+          title = "Logistic Regression Models")
+
+ggscatter(log_metrics, x = "total_genes", y = "Accuracy_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "Accuracy",
+          title = "Logistic Regression Models")
+```
+
+### Correlations with AUC-PR
+```{r, echo=FALSE}
+ggscatter(knn_metrics, x = "total_cell_lines", y = "AUCPR_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "AUC-PR",
+          title = "KNN Models")
+
+ggscatter(knn_metrics, x = "total_genes", y = "AUCPR_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "AUC-PR",
+          title = "KNN Models")
+
+ggscatter(lda_metrics, x = "total_cell_lines", y = "AUCPR_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "AUC-PR",
+          title = "LDA Models")
+
+ggscatter(lda_metrics, x = "total_genes", y = "AUCPR_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "AUC-PR",
+          title = "LDA Models")
+
+ggscatter(log_metrics, x = "total_cell_lines", y = "AUCPR_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "AUC-PR",
+          title = "Logistic Regression Models")
+
+ggscatter(log_metrics, x = "total_genes", y = "AUCPR_ratio", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "AUC-PR",
+          title = "Logistic Regression Models")
+```

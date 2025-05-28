@@ -1,0 +1,194 @@
+---
+title: "One vs. All Visuals"
+author: "Fateema Bazzi"
+date: "2025-04-10"
+output: 
+  html_document:
+    fig_width: 10
+    fig_height: 8
+params: 
+  drug_dataset: "GDSC2"
+  drug_name: "Selumetinib"
+  drug_id: "1062"
+  metricsdir: "./"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load in Libraries
+
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(gplots)
+library(readxl)
+library(tibble)
+library(rgl)
+options(rgl.useNULL = TRUE)
+library(gt)
+library(openxlsx)
+```
+
+## Get directory from user
+```{r, echo=FALSE}
+metricsdir <- params$metricsdir
+print(metricsdir)
+```
+
+## Get Model of Interest from user
+```{r, echo=FALSE}
+drug_name_id<-paste(params$drug_dataset,"_",params$drug_name,"_",params$drug_id, sep = "") #set as needed by user
+print(drug_name_id)
+```
+
+## Load in Data
+```{r, echo=FALSE}
+#oneall metrics
+file_name<- paste(metricsdir,drug_name_id,"_oneall_metrics.csv", sep = "")
+metrics_df <- read.csv(file_name)
+row.names(metrics_df) <- metrics_df$X
+colnames(metrics_df)[1]<-"Drug"
+
+#drug metadata
+drug_info_1 <- read.xlsx("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC1_fitted_dose_response_27Oct23.xlsx")
+drug_info_1 <- drug_info_1[, c("DATASET","DRUG_ID","PATHWAY_NAME", "PUTATIVE_TARGET")]
+drug_info_2 <- read.xlsx("https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC2_fitted_dose_response_27Oct23.xlsx")
+drug_info_2 <- drug_info_2[, c("DATASET","DRUG_ID","PATHWAY_NAME", "PUTATIVE_TARGET")]
+drug_info <-rbind(drug_info_1, drug_info_2)
+drug_info <- unique(drug_info)
+rm(drug_info_1)
+rm(drug_info_2)
+
+print(head(metrics_df))
+print(head(drug_info))
+```
+
+## Figures for Pearson Correlation
+### Format the Data
+```{r, echo=FALSE}
+#sort metrics from highest to lowest pearson correlation
+pcorr_metrics_df<- metrics_df %>%
+  arrange(desc(Pearson.Correlation))
+
+#get individual drug ids and dataset versions
+drug_ids<- unlist(lapply(strsplit(pcorr_metrics_df[,"Drug"], split = "_"), function(x)tail(x, n=1)))
+gdsc_vers <- unlist(lapply(strsplit(pcorr_metrics_df[,"Drug"], split = "_"), function(x)x[1]))
+
+#add column to drug metrics indicating pathway
+pcorr_metrics_df$Pathway <- drug_info[unlist(mapply(function(X,Y) {which(drug_info[,"DRUG_ID"]==X & drug_info[,"DATASET"]==Y)}, X=drug_ids, Y=gdsc_vers)), "PATHWAY_NAME"]
+
+#factor pathways to only name same pathway as model
+pcorr_metrics_df$Pathway <- as.factor(pcorr_metrics_df$Pathway)
+levels(pcorr_metrics_df$Pathway)[levels(pcorr_metrics_df$Pathway)!=pcorr_metrics_df$Pathway[pcorr_metrics_df$Drug==drug_name_id]]="Other"
+
+#add column indicating target
+pcorr_metrics_df$Target <- drug_info[unlist(mapply(function(X,Y) {which(drug_info[,"DRUG_ID"]==X & drug_info[,"DATASET"]==Y)}, X=drug_ids, Y=gdsc_vers)), "PUTATIVE_TARGET"]
+
+#factor targets to only name same pathway as target
+pcorr_metrics_df$Target <- as.factor(pcorr_metrics_df$Target)
+if (params$drug_name=="Afatinib"){
+  levels(pcorr_metrics_df$Target)[!startsWith(levels(pcorr_metrics_df$Target), "EGFR")]="Other"
+} else {
+  levels(pcorr_metrics_df$Target)[levels(pcorr_metrics_df$Target)!=pcorr_metrics_df$Target[pcorr_metrics_df$Drug==drug_name_id]]="Other"
+}
+  
+#top 50 drugs by pearson correlation
+pcorr_subset <- pcorr_metrics_df[1:50,]
+
+print(head(pcorr_subset))
+```
+
+### Plot color by pathway
+```{r, echo=FALSE}
+#pathways
+pcorr_subset %>%
+  arrange(desc(Pearson.Correlation)) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+  mutate(Drug=factor(Drug, levels=Drug)) %>%
+ggplot(aes(x=Drug, y=Pearson.Correlation, fill = Pathway)) + 
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values=c("grey", "red"))+
+  geom_col(width=0.5) +
+  scale_x_discrete() +
+  theme_bw()+
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size=15),
+        axis.ticks.x = element_blank(),
+        axis.title = element_text(size = 20),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "top",
+        legend.title = element_text(size=20),
+        legend.text = element_text(size=20))
+
+```
+
+### Plot color by Target
+```{r, echo=FALSE}
+colors=c("grey", "red", "blue", "green","yellow")
+#targets
+pcorr_subset %>%
+  arrange(desc(Pearson.Correlation)) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+  mutate(Drug=factor(Drug, levels=Drug)) %>%
+  ggplot(aes(x=Drug, y=Pearson.Correlation, fill = Target)) + 
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values=colors[1:length(table(pcorr_subset$Target))])+
+  geom_col(width=0.5) +
+  scale_x_discrete() +
+  theme_bw()+
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(size=15),
+        axis.ticks.x = element_blank(),
+        axis.title = element_text(size = 20),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "top",
+        legend.title = element_text(size=20),
+        legend.text = element_text(size=20))
+```
+
+### Mann-Whitney U test
+```{r,echo=FALSE}
+#Pathway
+mwu_test<-wilcox.test(Pearson.Correlation ~ Pathway, data = pcorr_metrics_df, exact = FALSE)
+pcorr_pval<-mwu_test$p.value
+
+comp_tibble <- tibble(`Pathway`=levels(pcorr_metrics_df$Pathway),
+                      `Average Pearson Correlation` = 
+                        c(mean(pcorr_metrics_df[pcorr_metrics_df$Pathway==levels(pcorr_metrics_df$Pathway)[1], "Pearson.Correlation"]), mean(pcorr_metrics_df[pcorr_metrics_df$Pathway==levels(pcorr_metrics_df$Pathway)[2], "Pearson.Correlation"])))
+
+
+comp_table<- gt(comp_tibble) |>
+  tab_header(
+    title = "Pearson Correlation by Pathway",
+    subtitle = paste("p-value= ",pcorr_pval)
+  )
+
+comp_table
+```
+
+```{r,echo=FALSE}
+#target
+if(params$drug_name=="Afatinib"){
+  levels(pcorr_metrics_df$Target)[levels(pcorr_metrics_df$Target) %in% levels(pcorr_metrics_df$Target)[startsWith(levels(pcorr_metrics_df$Target), "EGFR")]] <- "EGFR"
+}
+
+mwu_test<-wilcox.test(Pearson.Correlation ~ Target, data = pcorr_metrics_df, exact = FALSE)
+pcorr_pval<-mwu_test$p.value
+
+comp_tibble <- tibble(`Target`=levels(pcorr_metrics_df$Target),
+                      `Average Pearson Correlation` = 
+                        c(mean(na.omit(pcorr_metrics_df[pcorr_metrics_df$Target==levels(pcorr_metrics_df$Target)[1], "Pearson.Correlation"])), mean(na.omit(pcorr_metrics_df[pcorr_metrics_df$Target==levels(pcorr_metrics_df$Target)[2], "Pearson.Correlation"]))))
+
+
+comp_table<- gt(comp_tibble) |>
+  tab_header(
+    title = "Pearson Correlation by Target",
+    subtitle = paste("p-value= ",pcorr_pval)
+  )
+
+comp_table
+```

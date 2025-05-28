@@ -1,0 +1,69 @@
+---
+title: "Metadata Visualizations"
+author: "Fateema Bazzi"
+date: "2025-05-01"
+output: html_document
+params: 
+  dir: "./"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load in Libraries
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(gplots)
+library(ggrepel)
+library(knitr)
+```
+
+## Get directory from user
+```{r, echo=FALSE}
+dir <- params$dir
+print(dir)
+```
+
+## Load in Data
+```{r, echo=FALSE}
+metadata <- read.csv(paste(dir,"metadata.csv", sep = ""))
+row.names(metadata)<-metadata$drug
+print(head(metadata))
+```
+
+## Plots
+### Cell Lines
+```{r, echo=FALSE}
+#Cell line info
+avg_cell_lines <- mean(metadata$total_cell_lines)
+max_cell_lines <- max(metadata$total_cell_lines)
+min_cell_lines <- min(metadata$total_cell_lines)
+
+#histogram
+metadata %>%
+  ggplot(aes(x=total_cell_lines))+
+  geom_histogram(binwidth = 15, fill="#155289", color="#155289")+
+  geom_vline(xintercept=avg_cell_lines, linetype="dashed", color="red")+
+  xlab("Total Cell Lines")
+  
+```
+
+### Genes
+```{r, echo=FALSE}
+#genes info
+avg_genes <- mean(metadata$total_genes)
+max_genes <- max(metadata$total_genes)
+min_genes <- min(metadata$total_genes)
+
+#histogram
+metadata %>%
+  ggplot(aes(x=total_genes))+
+  geom_histogram(binwidth = 15, fill="#155289", color="#155289")+
+  geom_vline(xintercept=avg_genes, linetype="dashed", color="red")+
+  xlab("Total Genes")
+  
+```

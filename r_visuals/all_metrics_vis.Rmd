@@ -1,0 +1,587 @@
+---
+title: "Regression Model Visualizations"
+author: "Fateema Bazzi"
+date: "2025-04-20"
+output: 
+  html_document:
+    fig_width: 10
+    fig_height: 8
+params:
+  metricsdir: "./"
+  metadir: "./"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load in Libraries
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(gplots)
+library(readxl)
+library(ggrepel)
+library(stringr)
+library(ggstatsplot)
+library(tibble)
+library(rgl)
+options(rgl.useNULL = TRUE)
+library(gt)
+library(ggpubr)
+```
+
+## Get directories from User
+```{r, echo=FALSE}
+metricsdir <- params$metricsdir
+metadir <- params$metadir
+print(metricsdir)
+print(metadir)
+```
+
+## Load in Data
+```{r, echo=FALSE}
+all_metrics <- read.csv(paste(metricsdir, "all_regression_metrics.csv", sep=""))
+
+metadata <- read.csv(paste(metadir,"metadata.csv", sep = ""))
+row.names(metadata)<-metadata$drug
+
+print(head(all_metrics))
+print(head(metadata))
+```
+
+## Data Formatting
+```{r, echo=FALSE}
+#add a log 10 version of metrics for graphics
+all_metrics$logMSE<- log10(all_metrics$MSE)
+all_metrics$logRMSE<- log10(all_metrics$RMSE)
+
+#Separate into model types
+linear_metrics<-all_metrics[all_metrics$Model=="linear",]
+row.names(linear_metrics)<- linear_metrics$Drug
+
+elastnet_metrics<-all_metrics[all_metrics$Model=="elastic net",]
+row.names(elastnet_metrics)<- elastnet_metrics$Drug
+
+print(head(linear_metrics))
+print(head(elastnet_metrics))
+```
+
+## Linear versus Elastic Net
+### MSE
+```{r, echo=FALSE}
+#MSE
+#wilcoxon signed-rank test
+mse_sig_test<-wilcox.test(linear_metrics$MSE, elastnet_metrics$MSE, paired = TRUE)
+mse_pval <- mse_sig_test$p.value
+
+#Violin plot
+ggbetweenstats(data = all_metrics, x = Model, y = logMSE,
+               ylab = "log10(MSE)",
+               bf.message = F, p.adjust.method = "none", 
+               pairwise.display = "none",
+               centrality.type = "nonparametric",
+               centrality.label.args = list(size  = 6))+
+  theme(axis.title = element_text(size=20),
+        axis.text = element_text(size=20))
+```
+
+### RMSE
+```{r, echo=FALSE}
+#RMSE
+#wilcoxon signed-rank test
+rmse_sig_test<-wilcox.test(linear_metrics$RMSE, elastnet_metrics$RMSE, paired = TRUE)
+rmse_pval <- rmse_sig_test$p.value
+
+#violin plot
+ggbetweenstats(data = all_metrics, x = Model, y = logRMSE,
+               ylab = "log10(RMSE)",
+               bf.message = F, p.adjust.method = "none", 
+               pairwise.display = "none",
+               centrality.type = "nonparametric",
+               centrality.label.args = list(size  = 6))+
+  theme(axis.title = element_text(size=20),
+        axis.text = element_text(size=20))
+
+```
+
+### Pearson Correlation
+```{r, echo=FALSE}
+#pcorr
+#wilcoxon signed-rank test
+pcorr_sig_test<-wilcox.test(linear_metrics$Pearson.Correlation,
+                            elastnet_metrics$Pearson.Correlation, 
+                            paired = TRUE)
+pcorr_pval <- pcorr_sig_test$p.value
+
+#violin plot
+ggbetweenstats(data = all_metrics, x = Model, y = Pearson.Correlation,
+               ylab = "Pearson Correlation",
+               bf.message = F, p.adjust.method = "none", 
+               pairwise.display = "none",
+               centrality.type = "nonparametric",
+               centrality.label.args = list(size  = 6))+
+  theme(axis.title = element_text(size=20),
+        axis.text = element_text(size=20))
+```
+
+### Comparison table
+```{r, echo=FALSE}
+comp_tibble <- tibble(`Metric`=c("MSE","RMSE","Pearson Correlation"),
+                      `Linear` = c(median(all_metrics[all_metrics$Model=="linear", "MSE"]), median(all_metrics[all_metrics$Model=="linear", "RMSE"]), median(all_metrics[all_metrics$Model=="linear", "Pearson.Correlation"])), 
+                      `Elastic Net`= c(median(all_metrics[all_metrics$Model=="elastic net", "MSE"]), median(all_metrics[all_metrics$Model=="elastic net", "RMSE"]), median(all_metrics[all_metrics$Model=="elastic net", "Pearson.Correlation"])), 
+                      `p-value` = c(mse_pval,rmse_pval, pcorr_pval))
+
+
+comp_table<- gt(comp_tibble) |>
+  tab_header(
+    title = "Linear vs. Elastic Net Metrics",
+  )
+
+comp_table
+```
+
+## MSE Elastic Net
+```{r, echo=FALSE}
+#Sort by MSE
+elastnet_metrics <- elastnet_metrics %>% arrange(MSE)
+#get average and median
+avg_MSE <- mean(elastnet_metrics$MSE)
+med_MSE <- median(elastnet_metrics$MSE)
+
+annotation <- data.frame(
+   x = c(620),
+   y = c(med_MSE+0.3),
+   label = c(paste("Median=",round(med_MSE, digits = 3)))
+)
+
+#scatter plot
+elastnet_metrics %>%
+  ggplot( aes(x=Drug, y=MSE))+
+    geom_point(color="red") +
+    geom_hline(yintercept=med_MSE, linetype="dashed")+
+    geom_label(data=annotation, aes( x=x, y=y, label=label),
+               color="black",
+               size=6, fontface="bold" )+
+    theme_bw()+
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size = 20))
+
+#histogram
+elastnet_metrics %>%
+  ggplot(aes(x=MSE))+
+  geom_histogram(binwidth = 0.5, fill="#155289", color="#155289")+
+  geom_vline(xintercept=med_MSE, linetype="dashed", color="red")+
+  xlab("MSE")
+```
+
+Models with MSE < 1
+```{r, echo=FALSE}
+#models w/ mse below 1
+table(elastnet_metrics$MSE<1)
+length(elastnet_metrics$MSE[elastnet_metrics$MSE<1])/dim(elastnet_metrics)[1]
+```
+Models with MSE < 0.5
+```{r,echo=FALSE}
+#below 0.5
+table(elastnet_metrics$MSE<0.5)
+length(elastnet_metrics$MSE[elastnet_metrics$MSE<0.5])/dim(elastnet_metrics)[1]
+```
+
+### MSE Comparisons
+```{r, echo=FALSE}
+#MSE Comparisons
+deepDR_MSE <- 1.98
+mse_comp<- data.frame(
+   model = c("Elastic Net", "DeepDR"),
+   MSE = c(med_MSE, deepDR_MSE)
+)
+mse_comp %>%
+ggplot(aes(x=model, y=MSE)) + 
+  geom_bar(stat = "identity", fill="#155289", color="#155289")+
+  theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size=15),
+          axis.text = element_text(size=15))
+
+```
+
+## RMSE Elastic Net
+```{r, echo=FALSE}
+#sort by RMSE values
+elastnet_metrics <- elastnet_metrics %>% arrange(RMSE)
+#get average and median
+avg_RMSE <- mean(elastnet_metrics$RMSE)
+med_RMSE <- median(elastnet_metrics$RMSE)
+
+annotation <- data.frame(
+   x = c(630),
+   y = c(med_RMSE+0.1),
+   label = c(paste("Median=",round(med_RMSE, digits = 3)))
+)
+#scatterplot
+elastnet_metrics %>%
+  ggplot( aes(x=Drug, y=RMSE)) +
+    geom_point(color="red") +
+    geom_hline(yintercept=med_RMSE, linetype="dashed")+
+    geom_label(data=annotation, aes( x=x, y=y, label=label),
+               color="black",
+               size=6 , fontface="bold" )+
+    theme_bw()+
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size = 20))
+
+#histogram
+elastnet_metrics %>%
+  ggplot(aes(x=RMSE))+
+  geom_histogram(binwidth = 0.1, fill="#155289", color="#155289")+
+  geom_vline(xintercept=med_RMSE, linetype="dashed", color="red")+
+  xlab("RMSE")
+```
+
+Models with RMSE < 1
+```{r, echo=FALSE}
+#models w/ rmse below 1
+table(elastnet_metrics$RMSE<1)
+length(elastnet_metrics$RMSE[elastnet_metrics$RMSE<1])/dim(elastnet_metrics)[1]
+```
+Models with RMSE < 0.5
+```{r, echo=FALSE}
+#below 0.5
+table(elastnet_metrics$RMSE<0.5)
+length(elastnet_metrics$RMSE[elastnet_metrics$RMSE<0.5])/dim(elastnet_metrics)[1]
+```
+
+### RMSE Comparisons
+```{r, echo=FALSE}
+deepTTA_RMSE <- 1.544
+tCNNS_RMSE <- 2.017
+BANDRP_RMSE <- 1.398
+DeepCDR_RMSE <- 1.652
+
+rmse_comp<- data.frame(
+   model = c("Elastic Net", "DeepTTA", "tCNNS", "BANDRP", "DeepCDR"),
+   RMSE = c(med_RMSE, deepTTA_RMSE, tCNNS_RMSE, BANDRP_RMSE, DeepCDR_RMSE)
+)
+rmse_comp %>%
+ggplot(aes(x=model, y=RMSE)) + 
+  geom_bar(stat = "identity", fill="#155289", color="#155289")+
+  theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size=15),
+          axis.text = element_text(size=15))
+```
+
+## Pearson Correlation Elastic Net
+```{r, echo=FALSE}
+#sort by Pearson Correlation values
+elastnet_metrics <- elastnet_metrics %>% arrange(Pearson.Correlation)
+#get average and median
+avg_pcorr <- mean(abs(elastnet_metrics$Pearson.Correlation))
+med_pcorr <- median(elastnet_metrics$Pearson.Correlation)
+annotation <- data.frame(
+   x = c(630),
+   y = c(med_pcorr+0.02),
+   label = c(paste("Median=",round(med_pcorr, digits = 3)))
+)
+#scatter plot
+elastnet_metrics %>%
+    ggplot( aes(x=Drug, y=Pearson.Correlation, color=abs(Pearson.Correlation))) +
+    geom_point(color="red") +
+    geom_hline(yintercept=med_pcorr, linetype="dashed")+
+    geom_label(data=annotation, aes( x=x, y=y, label=label),
+               color="black",
+               size=6 , fontface="bold" )+
+    theme_bw()+
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = "none",
+          axis.title = element_text(size=20))
+
+#histogram
+elastnet_metrics %>%
+  ggplot(aes(x=Pearson.Correlation))+
+  geom_histogram(binwidth = 0.01, fill="#155289", color="#155289")+
+  geom_vline(xintercept=med_pcorr, linetype="dashed", color="red")+
+  xlab("Pearson Correlation")
+```
+
+Models with Pearson Correlation > 0.5
+```{r, echo=FALSE}
+#above 0.5
+table(abs(elastnet_metrics$Pearson.Correlation)>0.5)
+length(elastnet_metrics$Pearson.Correlation[abs(elastnet_metrics$Pearson.Correlation)>0.5])/dim(elastnet_metrics)[1]
+```
+Models with Pearson Correlation > 0.75
+```{r, echo=FALSE}
+#above 0.75
+table(abs(elastnet_metrics$Pearson.Correlation)>0.75)
+length(elastnet_metrics$Pearson.Correlation[abs(elastnet_metrics$Pearson.Correlation)>0.75])/dim(elastnet_metrics)[1]
+```
+
+### Pearson Correlation Comparisons
+```{r, echo=FALSE}
+deepTTA_pcorr <- 0.647
+tCNNS_pcorr <- 0.371
+BANDRP_pcorr <- 0.756
+DeepCDR_pcorr <- 0.503
+
+pcorr_comp<- data.frame(
+   model = c("Elastic Net", "DeepTTA", "tCNNS", "BANDRP", "DeepCDR"),
+   Pearson.Correlation = c(med_pcorr, deepTTA_pcorr, tCNNS_pcorr, BANDRP_pcorr, DeepCDR_pcorr)
+)
+pcorr_comp %>%
+ggplot(aes(x=model, y=Pearson.Correlation)) + 
+  geom_bar(stat = "identity", fill="#155289", color="#155289")+
+  theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(size=15),
+          axis.text = element_text(size=15))
+```
+
+## Comparisons all Metrics
+```{r, echo=FALSE}
+comp_tibble <- tibble(`Model`= c("Elastic Net","DeepTTA","DeepDR", "tCNNS", "BANDRP", "DeepCDR"),
+                      `MSE` = c(round(med_MSE, digits = 3), "-", deepDR_MSE, "-", "-", "-"),  
+                      `RMSE`= c(round(med_RMSE, digits = 3), deepTTA_RMSE, "-", tCNNS_RMSE, BANDRP_RMSE, DeepCDR_RMSE), 
+                      `Pearson Correlation` = c(round(med_pcorr, digits = 3), deepTTA_pcorr, "[0.7, 0.96]", tCNNS_pcorr, BANDRP_pcorr, DeepCDR_pcorr))
+
+
+comp_table<- gt(comp_tibble) |>
+  tab_header(
+    title = "Performance Comparison",
+  )
+
+comp_table
+```
+
+## Correlation of Metadata
+```{r, echo=FALSE}
+metadata$var_diff<- abs(metadata$train_ic50_var-metadata$test_ic50_var)
+
+linear_metrics$total_cell_lines <- metadata$total_cell_lines[match(rownames(linear_metrics), rownames(metadata))]
+linear_metrics$total_genes <- metadata$total_genes[match(rownames(linear_metrics), rownames(metadata))]
+linear_metrics$train_ic50_var <- metadata$train_ic50_var[match(rownames(linear_metrics), rownames(metadata))]
+linear_metrics$test_ic50_var <- metadata$test_ic50_var[match(rownames(linear_metrics), rownames(metadata))]
+linear_metrics$var_diff <- metadata$var_diff[match(rownames(linear_metrics), rownames(metadata))]
+
+elastnet_metrics$total_cell_lines <- metadata$total_cell_lines[match(rownames(elastnet_metrics), rownames(metadata))]
+elastnet_metrics$total_genes <- metadata$total_genes[match(rownames(elastnet_metrics), rownames(metadata))]
+elastnet_metrics$train_ic50_var <- metadata$train_ic50_var[match(rownames(elastnet_metrics), rownames(metadata))]
+elastnet_metrics$test_ic50_var <- metadata$test_ic50_var[match(rownames(elastnet_metrics), rownames(metadata))]
+elastnet_metrics$var_diff <- metadata$var_diff[match(rownames(elastnet_metrics), rownames(metadata))]
+```
+
+## Linear Regression Correlation
+Test for normality
+```{r, echo=FALSE}
+shapiro.test(linear_metrics$MSE)
+shapiro.test(linear_metrics$RMSE)
+shapiro.test(linear_metrics$Pearson.Correlation)
+shapiro.test(linear_metrics$total_cell_lines)
+shapiro.test(linear_metrics$total_genes)
+shapiro.test(linear_metrics$train_ic50_var)
+shapiro.test(linear_metrics$test_ic50_var)
+```
+since none of the values follow a normal distribution, can't use Pearson correlation
+
+### Correlation with Pearson Correlation
+```{r, echo=FALSE}
+ggscatter(linear_metrics, x = "total_cell_lines", y = "Pearson.Correlation",
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "Pearson Correlation",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.x = 300, label.y = -0.5))
+
+ggscatter(linear_metrics, x = "total_genes", y = "Pearson.Correlation", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "Pearson Correlation",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 0.6))
+
+ggscatter(linear_metrics, x = "train_ic50_var", y = "Pearson.Correlation",
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Training IC50 Variance", ylab = "Pearson Correlation",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.x = 7.5, label.y = -0.5))
+
+ggscatter(linear_metrics, x = "test_ic50_var", y = "Pearson.Correlation", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Test IC50 Variance", ylab = "Pearson Correlation",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.x = 8, label.y = -0.5))
+```
+
+### Correlation with MSE
+```{r, echo=FALSE}
+ggscatter(linear_metrics, x = "total_cell_lines", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "MSE",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 1.3e+26))
+
+ggscatter(linear_metrics, x = "total_genes", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "MSE",
+          title = "Linear Regression Models")
+
+ggscatter(linear_metrics, x = "train_ic50_var", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Training IC50 Variance", ylab = "MSE",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 1.3e+26))
+
+ggscatter(linear_metrics, x = "test_ic50_var", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Test IC50 Variance", ylab = "MSE",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 1.3e+26))
+```
+
+### Correlation with RMSE
+```{r, echo=FALSE}
+ggscatter(linear_metrics, x = "total_cell_lines", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "RMSE",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 1.1e+13))
+
+ggscatter(linear_metrics, x = "total_genes", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "RMSE",
+          title = "Linear Regression Models")
+
+ggscatter(linear_metrics, x = "train_ic50_var", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Training IC50 Variance", ylab = "RMSE",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 1.1e+13))
+
+ggscatter(linear_metrics, x = "test_ic50_var", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Test IC50 Variance", ylab = "RMSE",
+          title = "Linear Regression Models",
+          cor.coeff.args = list(label.y = 1.1e+13))
+```
+
+## Elast Net Correlation
+Test for normality
+```{r, echo=FALSE}
+shapiro.test(elastnet_metrics$MSE)
+shapiro.test(elastnet_metrics$RMSE)
+shapiro.test(elastnet_metrics$Pearson.Correlation)
+shapiro.test(elastnet_metrics$total_cell_lines)
+shapiro.test(elastnet_metrics$total_genes)
+shapiro.test(elastnet_metrics$train_ic50_var)
+shapiro.test(elastnet_metrics$test_ic50_var)
+```
+since none of the values follow a normal distribution, can't use Pearson correlation
+
+### Correlation with Pearson Correlation
+```{r, echo=FALSE}
+ggscatter(elastnet_metrics, x = "total_cell_lines", y = "Pearson.Correlation", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "Pearson Correlation",
+          title = "Elastic Net Models",
+          cor.coeff.args = list(label.x = 300, label.y = -0.5))
+
+ggscatter(elastnet_metrics, x = "total_genes", y = "Pearson.Correlation", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "Pearson Correlation",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "train_ic50_var", y = "Pearson.Correlation",
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Training IC50 Variance", ylab = "Pearson Correlation",
+          title = "Elastic Net Models",
+          cor.coeff.args = list(label.x = 7, label.y = -0.1))
+
+ggscatter(elastnet_metrics, x = "test_ic50_var", y = "Pearson.Correlation", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Test IC50 Variance", ylab = "Pearson Correlation",
+          title = "Elastic Net Models",
+          cor.coeff.args = list(label.x = 8, label.y = -0.1))
+```
+
+### Correlation with MSE
+```{r, echo=FALSE}
+ggscatter(elastnet_metrics, x = "total_cell_lines", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "MSE",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "total_genes", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "MSE",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "train_ic50_var", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Training IC50 Variance", ylab = "MSE",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "test_ic50_var", y = "MSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Test IC50 Variance", ylab = "MSE",
+          title = "Elastic Net Models")
+```
+
+### Correlation with RMSE
+```{r, echo=FALSE}
+ggscatter(elastnet_metrics, x = "total_cell_lines", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Cell lines", ylab = "RMSE",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "total_genes", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Genes", ylab = "RMSE",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "train_ic50_var", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Training IC50 Variance", ylab = "RMSE",
+          title = "Elastic Net Models")
+
+ggscatter(elastnet_metrics, x = "test_ic50_var", y = "RMSE", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Test IC50 Variance", ylab = "RMSE",
+          title = "Elastic Net Models")
+```
