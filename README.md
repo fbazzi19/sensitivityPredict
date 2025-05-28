@@ -7,6 +7,7 @@ Data was retrieved from [Cell Model Passports](https://cellmodelpassports.sanger
 ## Model Generation
 Binary and regression models can be created through different parameters. Binary models report performance, and regression models report performance and save the produced elastic net model.
 ### Creating One Model
+`python3 workflow.py -dOI [dOI] -dID [dID] -oP [path/for/outputs/] -gV [1/2] -b [0/1] -v [0/1] -m [0/1] -dM [0/1]`
 #### Parameters
 `-dOI --drugOfInterest`: name of drug to produce models for  
 `-dID --drugID`: ID of the drug to produce models for  
