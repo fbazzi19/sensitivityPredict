@@ -58,9 +58,24 @@ Binary or regression models are created for every drug in a specified GDSC versi
 `CONDA_PATH`: miniconda directory  
 
 ### Outputs
+If creating binary models:  
+`[outputPath]all_classification_metrics.csv`: Accuracy and AUC-PR of Logistic Regression, LDA, and KNN models when tested on the test set in the format  
+> `Model, Drug, Accuracy, AUCPR, Random Accuracy, Random AUCPR`  
+> If run again for binary models and the same output path, the results will be appended to the same file.
 
-# One Model Against all Drugs
+If creating regression models:  
+`[outputPath]all_regression_metrics.csv`: R2, MSE, RMSE, and Pearson Correlation Coefficients of Linear Regression and Elastic Network models when tested on the test set in the format
+> `Model, Drug, R2, MSE, RMSE, Pearson Correlation`\
+> If run again for regression models and the same output path, the results will be appended to the same file.\
+`[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`: The elastic net model produced  
+`[outputPath]model_genes/GDSC[gdscVer]_[drugOfInterest]_[drugID]_model_genes.csv`: The genes used as features for the models  
+`[outputPath]model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv`: All non-zero gene coefficients for the elastic net model  
+
+# One Model Against All Drugs
 
 # Visuals
 
 # Workflow
+
+
+:shipit:
