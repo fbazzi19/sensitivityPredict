@@ -17,5 +17,9 @@ Binary and regression models can be created through different parameters. Binary
 `-v --visuals`: 0/1 value indicating whether to produce visuals. Set to 0 (no visuals) by default.  
 `-m --metadata`: 0/1 value indicating whether to write properties of the data to a file. Set to 0 by default.  
 `-dM --developerMode`: 0/1 value indicating whether to produce more in-depth, time-consuming visuals. Set to 0 by default.  
-#### Output
+#### Outputs
+If creating binary models:  
+`[outputPath]all_classification_metrics.csv`: Accuracy and AUC-PR of Logistic Regression, LDA, and KNN models when tested on the test set in the format  
+> `Model, Drug, Accuracy, AUCPR, Random Accuracy, Random AUCPR`
 ### Create Models for all Drugs
+Binary or regression models are created for every drug in a specified GDSC version. Binary models report performance, and regression models report performance and save the produced elastic net model.
