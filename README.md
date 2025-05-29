@@ -50,4 +50,11 @@ Binary or regression models are created for every drug in a specified GDSC versi
 `./modelsbatch.sh [OUTPUT_PATH] [GDSC_VER] [METADATA] [BINARY] [EMAIL] [CONDA_PATH]`  
 
 ### Parameters  
-`OUTPUT_PATH`:  
+`OUTPUT_PATH`: directory to store any outputs to  
+`GDSC_VER`: version of the GDSC dataset to use. 1 or 2  
+`METADATA`: 0/1 value indicating whether to write properties of the data to a file.  
+`BINARY`: 0/1 value indicating whether to make binary models.  
+`EMAIL`: email address to send updates regarding the run of the job to.  
+`CONDA_PATH`: miniconda directory  
+
+### Outputs
