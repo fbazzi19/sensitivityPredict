@@ -42,7 +42,8 @@ If visuals are being produced:
 
 If metadata is being written:  
 `[outputPath]metadata.csv`: Properties of the data being used to develop the model in the format  
-> `Drug, Total_cell_lines, Total_genes, Total_ic50_var, Train_cell_lines, Train_ic50_var, Test_cell_lines, Test_ic50_var`  
+> `Drug, Total_cell_lines, Total_genes, Total_ic50_var, Train_cell_lines, Train_ic50_var, Test_cell_lines, Test_ic50_var`
+
 > If run again with the same output path, the results will be appended to the same file.  
 
 ## Create Models for all Drugs
@@ -60,13 +61,16 @@ Binary or regression models are created for every drug in a specified GDSC versi
 ### Outputs
 If creating binary models:  
 `[outputPath]all_classification_metrics.csv`: Accuracy and AUC-PR of Logistic Regression, LDA, and KNN models when tested on the test set in the format  
-> `Model, Drug, Accuracy, AUCPR, Random Accuracy, Random AUCPR`  
+> `Model, Drug, Accuracy, AUCPR, Random Accuracy, Random AUCPR`
+
 > If run again for binary models and the same output path, the results will be appended to the same file.
 
 If creating regression models:  
 `[outputPath]all_regression_metrics.csv`: R2, MSE, RMSE, and Pearson Correlation Coefficients of Linear Regression and Elastic Network models when tested on the test set in the format
 > `Model, Drug, R2, MSE, RMSE, Pearson Correlation`\
+
 > If run again for regression models and the same output path, the results will be appended to the same file.\
+
 `[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`: The elastic net model produced  
 `[outputPath]model_genes/GDSC[gdscVer]_[drugOfInterest]_[drugID]_model_genes.csv`: The genes used as features for the models  
 `[outputPath]model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv`: All non-zero gene coefficients for the elastic net model  
