@@ -21,5 +21,11 @@ Binary and regression models can be created through different parameters. Binary
 If creating binary models:  
 `[outputPath]all_classification_metrics.csv`: Accuracy and AUC-PR of Logistic Regression, LDA, and KNN models when tested on the test set in the format  
 > `Model, Drug, Accuracy, AUCPR, Random Accuracy, Random AUCPR`
+> If run again for binary models and the same output path, the results will be written to the same file.
+If creating regression models:  
+`[outputPath]all_regression_metrics.csv`: R2, MSE, RMSE, and Pearson Correlation Coefficients of Linear Regression and Elastic Network models when tested on the test set in the format
+> `Model, Drug, R2, MSE, RMSE, Pearson Correlation`
+> If run again for regression models and the same output path, the results will be written to the same file.  
+`[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`:  
 ### Create Models for all Drugs
 Binary or regression models are created for every drug in a specified GDSC version. Binary models report performance, and regression models report performance and save the produced elastic net model.
