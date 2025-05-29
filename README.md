@@ -58,3 +58,9 @@ Binary or regression models are created for every drug in a specified GDSC versi
 `CONDA_PATH`: miniconda directory  
 
 ### Outputs
+
+# One Model Against all Drugs
+
+# Visuals
+
+# Workflow
