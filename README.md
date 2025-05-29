@@ -30,6 +30,18 @@ If creating regression models:
 
 > If run again for regression models and the same output path, the results will be written to the same file.
 
-`[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`:  
+`[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`: The elastic net model produced  
+`[outputPath]model_genes/GDSC[gdscVer]_[drugOfInterest]_[drugID]_model_genes.csv`: The genes used as features for the models  
+`[outputPath]model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv`: All non-zero gene coefficients for the elastic net model  
+
+If visuals are being produced:  
+`[outputPath]GDSC[gdscVer]_[drugOfInterest]_[drugID].pdf`: visuals produced during data pre-processing  
+`[outputPath]GDSC[gdscVer]_[drugOfInterest]_[drugID]_classification.pdf`: visuals produced during the production of binary models  
+`[outputPath]GDSC[gdscVer]_[drugOfInterest]_[drugID]_regression.pdf`: visuals produced during the production of regression models  
+`[outputPath]GDSC[gdscVer]_[drugOfInterest]_[drugID]__y_train_set.csv`: List of cell lines used in training the models  
+
+If metadata is being written:  
+`[outputPath]metadata.csv`:  
+
 ### Create Models for all Drugs
 Binary or regression models are created for every drug in a specified GDSC version. Binary models report performance, and regression models report performance and save the produced elastic net model.
