@@ -67,15 +67,40 @@ If creating binary models:
 
 If creating regression models:  
 `[outputPath]all_regression_metrics.csv`: R2, MSE, RMSE, and Pearson Correlation Coefficients of Linear Regression and Elastic Network models when tested on the test set in the format
-> `Model, Drug, R2, MSE, RMSE, Pearson Correlation`\
+> `Model, Drug, R2, MSE, RMSE, Pearson Correlation`  
 
-> If run again for regression models and the same output path, the results will be appended to the same file.\
+> If run again for regression models and the same output path, the results will be appended to the same file.  
 
-`[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`: The elastic net model produced  
-`[outputPath]model_genes/GDSC[gdscVer]_[drugOfInterest]_[drugID]_model_genes.csv`: The genes used as features for the models  
-`[outputPath]model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv`: All non-zero gene coefficients for the elastic net model  
+`[outputPath]models/GDSC[gdscVer]_[drugOfInterest]_[drugID]_elastnet_model.pkl`: The elastic net models produced. One model per drug.  
+`[outputPath]model_genes/GDSC[gdscVer]_[drugOfInterest]_[drugID]_model_genes.csv`: The genes used as features for the models. One file per drug model.  
+`[outputPath]model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv`: All non-zero gene coefficients for the elastic net model. One file per drug model.  
 
 # One Model Against All Drugs
+Takes one elastic net model and assesses its predictive performance for all drugs.
+
+## For one Model
+`python3 one_v_all.py -m [model] -g [genes] -oP [path/for/outputs/]`
+### Parameters
+`-m --model`: model to be assessed. Output from `workflow.py`  
+`-g --genes`: the genes that were used as features for the model. Output from `workflow.py`  
+`-op --outputPath`:  directory to store any outputs to  
+
+### Outputs
+`[outputPath]one_all_metrics/[drug_model_name]_oneall_metrics.csv`: R2, RMSE, and Pearson Correlation for the performance of the model on all the drugs. In the format  
+> `Drug, R2, RMSE, Pearson Correlation`
+
+## For all Models
+Done using a SLURM HPC.  
+`./oneallsbatch.sh [OUTPUT_PATH] [GDSC_VER] [EMAIL] [CONDA_PATH]`  
+### Parameters
+`OUTPUT_PATH`: directory to store any outputs to  
+`GDSC_VER`: version of the GDSC dataset to use. 1 or 2
+`EMAIL`: email address to send updates regarding the run of the job to.  
+`CONDA_PATH`: miniconda directory  
+
+### Outputs
+`[outputPath]one_all_metrics/[drug_model_name]_oneall_metrics.csv`: R2, RMSE, and Pearson Correlation for the performance of the models on all the drugs. One file per drug model. In the format  
+> `Drug, R2, RMSE, Pearson Correlation`  
 
 # Visuals
 
