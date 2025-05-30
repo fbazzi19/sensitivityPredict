@@ -125,5 +125,15 @@ GDSC2, Selumetinib, 1062
 `python3 one_v_all.py -m ./Outputs/models/GDSC2_Selumetinib_1062_elastnet_model.pkl -g ./Outputs/model_genes/GDSC2_Selumetinib_1062_model_genes.csv -oP ./Outputs`  
 
 ## Visual Production  
+### Metadata  
+Knit `r_visuals/metadata_vis.Rmd` with parameters. Set `dir` to the directory containing `metadata.csv`.  
+### Classification Models  
+Knit `r_visuals/all_class_metrics_vis.Rmd` with parameters. Set `metricsdir` to the directory containing `all_classification_metrics.csv`. Set `metadir` to the directory containing `metadata.csv`.  
+### Regression Models  
+Knit `r_visuals/all_metrics_vis.Rmd` with parameters. Set `metricsdir` to the directory containing `all_regression_metrics.csv`. Set `metadir` to the directory containing `metadata.csv`.  
+### Model Coefficients  
+Knit `r_visuals/top_coefs_vis.Rmd` with parameters. Set `coefsdir` to the directory containing the `model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv` files for every drug.  
+### One Model, All Drugs  
+Knit
 
 :shipit:
