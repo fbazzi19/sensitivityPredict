@@ -118,4 +118,12 @@ Regression models for GDSC1:
 Regression models for GDSC2:
 > `./modelsbatch.sh ./Outputs 2 1 0 [EMAIL] [CONDA_PATH]`  
 
+## Testing Two Drug Models Against All Drugs  
+GDSC2, Afatinib, 1032  
+`python3 one_v_all.py -m ./Outputs/models/GDSC2_Afatinib_1032_elastnet_model.pkl -g ./Outputs/model_genes/GDSC2_Afatinib_1032_model_genes.csv -oP ./Outputs`  
+GDSC2, Selumetinib, 1062  
+`python3 one_v_all.py -m ./Outputs/models/GDSC2_Selumetinib_1062_elastnet_model.pkl -g ./Outputs/model_genes/GDSC2_Selumetinib_1062_model_genes.csv -oP ./Outputs`  
+
+## Visual Production  
+
 :shipit:
