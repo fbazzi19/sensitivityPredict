@@ -102,9 +102,10 @@ Done using a SLURM HPC.
 `[outputPath]one_all_metrics/[drug_model_name]_oneall_metrics.csv`: R2, RMSE, and Pearson Correlation for the performance of the models on all the drugs. One file per drug model. In the format  
 > `Drug, R2, RMSE, Pearson Correlation`  
 
-# Workflow
+# Workflow  
 Example workflow, how I produced my models.
-## Model Production
+
+## Model Production  
 Binary models for GDSC1:  
 > `./modelsbatch.sh ./Outputs 1 0 1 [EMAIL] [CONDA_PATH]`  
 
