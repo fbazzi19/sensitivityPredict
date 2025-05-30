@@ -112,5 +112,10 @@ Binary models for GDSC1:
 Binary models for GDSC2:  
 > `./modelsbatch.sh ./Outputs 2 0 1 [EMAIL] [CONDA_PATH]`  
 
+Regression models for GDSC1:  
+> `./modelsbatch.sh ./Outputs 1 1 0 [EMAIL] [CONDA_PATH]`
+
+Regression models for GDSC2:
+> `./modelsbatch.sh ./Outputs 2 1 0 [EMAIL] [CONDA_PATH]`  
 
 :shipit:
