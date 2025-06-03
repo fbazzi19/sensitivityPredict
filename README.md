@@ -134,6 +134,6 @@ Knit `r_visuals/all_metrics_vis.Rmd` with parameters. Set `metricsdir` to the di
 ### Model Coefficients  
 Knit `r_visuals/top_coefs_vis.Rmd` with parameters. Set `coefsdir` to the directory containing the `model_coefs/GDSC[gdscVer]_[drugOfInterest]_[drugID]_top_coefs.csv` files for every drug.  
 ### One Model, All Drugs  
-Knit
+Knit `r_visuals/onall_visuals.Rmd` with parameters. Set `drug_dataset` to either `GDSC1` or `GDSC2`. Set `drug_name` to the name of the drug the model is for. Set `drug_id` to the ID of the drug the model is for. Set `metricsdir` to the directory containing `[drug_dataset]_[drug_name]_[drug_id]_oneall_metrics.csv`.
 
 :shipit:
