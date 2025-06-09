@@ -57,13 +57,13 @@ def ic50_violin_plot(data, thresholds, thresh_len, pdf):
     # Add horizontal lines
     for i in range(thresh_len):
         # Draw a horizontal line
-        plt.hlines(y=thresholds[i], xmin=i - 0.4, xmax=i + 0.4, color='red', linewidth=2)
+        plt.hlines(y=thresholds[i], xmin=i - 0.4, xmax=i + 0.4, color='red', linewidth=4)
 
-    plt.title("IC50 Distributions", fontsize=35)
+    plt.title("IC50 Distributions", fontsize=40)
     plt.xticks([])
-    plt.xlabel("Drugs", fontsize=30)
-    plt.ylabel("ln(IC50)", fontsize=30)
-    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.xlabel("Drugs", fontsize=35)
+    plt.ylabel("ln(IC50)", fontsize=35)
+    plt.tick_params(axis='both', which='major', labelsize=25)
     pdf.savefig()
     plt.close()
     return 0
